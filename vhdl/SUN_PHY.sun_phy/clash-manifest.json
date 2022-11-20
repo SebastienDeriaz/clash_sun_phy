@@ -1,0 +1,101 @@
+{
+    "components": [
+        "sun_phy"
+    ],
+    "dependencies": {
+        "transitive": []
+    },
+    "domains": {
+        "IntelSystem": {
+            "active_edge": "Rising",
+            "init_behavior": "Defined",
+            "period": 10000,
+            "reset_kind": "Asynchronous",
+            "reset_polarity": "ActiveHigh"
+        },
+        "System": {
+            "active_edge": "Rising",
+            "init_behavior": "Defined",
+            "period": 10000,
+            "reset_kind": "Asynchronous",
+            "reset_polarity": "ActiveHigh"
+        },
+        "XilinxSystem": {
+            "active_edge": "Rising",
+            "init_behavior": "Defined",
+            "period": 10000,
+            "reset_kind": "Synchronous",
+            "reset_polarity": "ActiveHigh"
+        }
+    },
+    "files": [
+        {
+            "name": "sun_phy.sdc",
+            "sha256": "fa366388f334a0b8e14edcddf7179deb4f28617d94798c5298f0caecca06386c"
+        },
+        {
+            "name": "sun_phy_types.vhdl",
+            "sha256": "da9f4497eccc12a2906d4d5a4617ff567750dacf07aea875a8fd8d74a0b15895"
+        },
+        {
+            "name": "sun_phy.vhdl",
+            "sha256": "4137f1328d24053c1cf399b6cbb5f00cdf28796099068639f77a4415fe40b34d"
+        }
+    ],
+    "flags": [
+        20,
+        20
+    ],
+    "hash": "f055e695ca6ef59bb828444cada34b421340d6e2c92e2c45eb3da98b57c7d12c",
+    "top_component": {
+        "name": "sun_phy",
+        "ports_flat": [
+            {
+                "direction": "in",
+                "domain": "System",
+                "is_clock": true,
+                "name": "CLOCK_50",
+                "type_name": "CLOCK_50.sun_phy_types.clk_System",
+                "width": 1
+            },
+            {
+                "direction": "in",
+                "domain": "System",
+                "is_clock": false,
+                "name": "reset",
+                "type_name": "reset.sun_phy_types.rst_System",
+                "width": 1
+            },
+            {
+                "direction": "in",
+                "domain": "System",
+                "is_clock": false,
+                "name": "enable",
+                "type_name": "enable.sun_phy_types.en_System",
+                "width": 1
+            },
+            {
+                "direction": "in",
+                "is_clock": false,
+                "name": "input",
+                "type_name": "std_logic_vector(3 downto 0)",
+                "width": 4
+            },
+            {
+                "direction": "out",
+                "is_clock": false,
+                "name": "A",
+                "type_name": "std_logic_vector(3 downto 0)",
+                "width": 4
+            },
+            {
+                "direction": "out",
+                "is_clock": false,
+                "name": "B",
+                "type_name": "std_logic_vector(6 downto 0)",
+                "width": 7
+            }
+        ]
+    },
+    "version": "unstable"
+}

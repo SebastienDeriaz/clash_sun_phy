@@ -1,0 +1,94 @@
+{
+    "components": [
+        "topEntity"
+    ],
+    "dependencies": {
+        "transitive": []
+    },
+    "domains": {
+        "IntelSystem": {
+            "active_edge": "Rising",
+            "init_behavior": "Defined",
+            "period": 10000,
+            "reset_kind": "Asynchronous",
+            "reset_polarity": "ActiveHigh"
+        },
+        "System": {
+            "active_edge": "Rising",
+            "init_behavior": "Defined",
+            "period": 10000,
+            "reset_kind": "Asynchronous",
+            "reset_polarity": "ActiveHigh"
+        },
+        "XilinxSystem": {
+            "active_edge": "Rising",
+            "init_behavior": "Defined",
+            "period": 10000,
+            "reset_kind": "Synchronous",
+            "reset_polarity": "ActiveHigh"
+        }
+    },
+    "files": [
+        {
+            "name": "topEntity.sdc",
+            "sha256": "65d8dd306b7ca8dd36fa7f9dd308bf678834076a9210b958f89a3309fc7f5a38"
+        },
+        {
+            "name": "PN9_topEntity_types.vhdl",
+            "sha256": "038d392facdff839030fd018f532a872455437d14f5bd80802547c59cba378e4"
+        },
+        {
+            "name": "topEntity.vhdl",
+            "sha256": "6f1082db123397a1b626094959c5f93ef3911f1baf8e549576623a181c1a90ba"
+        }
+    ],
+    "flags": [
+        20,
+        20
+    ],
+    "hash": "719653cebb6e20e5a3746eb1142f0f2e40f882e6d032397dda5df7266c2b1c70",
+    "top_component": {
+        "name": "topEntity",
+        "ports_flat": [
+            {
+                "direction": "in",
+                "domain": "System",
+                "is_clock": true,
+                "name": "d_0_0",
+                "type_name": "d_0_0.PN9_topEntity_types.clk_System",
+                "width": 1
+            },
+            {
+                "direction": "in",
+                "domain": "System",
+                "is_clock": false,
+                "name": "d_1_0",
+                "type_name": "d_1_0.PN9_topEntity_types.rst_System",
+                "width": 1
+            },
+            {
+                "direction": "in",
+                "domain": "System",
+                "is_clock": false,
+                "name": "d_2_0",
+                "type_name": "d_2_0.PN9_topEntity_types.en_System",
+                "width": 1
+            },
+            {
+                "direction": "in",
+                "is_clock": false,
+                "name": "eta",
+                "type_name": "std_logic",
+                "width": 1
+            },
+            {
+                "direction": "out",
+                "is_clock": false,
+                "name": "result",
+                "type_name": "std_logic",
+                "width": 1
+            }
+        ]
+    },
+    "version": "unstable"
+}

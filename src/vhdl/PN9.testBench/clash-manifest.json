@@ -1,0 +1,65 @@
+{
+    "components": [
+        "testBench"
+    ],
+    "dependencies": {
+        "transitive": [
+            "PN9.topEntity"
+        ]
+    },
+    "domains": {
+        "IntelSystem": {
+            "active_edge": "Rising",
+            "init_behavior": "Defined",
+            "period": 10000,
+            "reset_kind": "Asynchronous",
+            "reset_polarity": "ActiveHigh"
+        },
+        "System": {
+            "active_edge": "Rising",
+            "init_behavior": "Defined",
+            "period": 10000,
+            "reset_kind": "Asynchronous",
+            "reset_polarity": "ActiveHigh"
+        },
+        "XilinxSystem": {
+            "active_edge": "Rising",
+            "init_behavior": "Defined",
+            "period": 10000,
+            "reset_kind": "Synchronous",
+            "reset_polarity": "ActiveHigh"
+        }
+    },
+    "files": [
+        {
+            "name": "PN9_testBench_types.vhdl",
+            "sha256": "8b85566a3fc3c1775b79f54f62b2e5eda49bc56b355e84aae2cf9c1ccc85b6e9"
+        },
+        {
+            "name": "testBench.vhdl",
+            "sha256": "8ebda80c01ea9dbb5b3e3d2026e3774a59e3c25878d23f4adb5078a128ec5e2b"
+        },
+        {
+            "name": "testBench_slv2string_2F58399B7F4E729C.vhdl",
+            "sha256": "8c0de4b79ec913d113c0e7209937262213679bf5be70e184f1780e2c69538c3c"
+        }
+    ],
+    "flags": [
+        20,
+        20
+    ],
+    "hash": "edc08dce196001074f835b4c9e7077113419e5f8b91a53d668808a86e32b0c30",
+    "top_component": {
+        "name": "testBench",
+        "ports_flat": [
+            {
+                "direction": "out",
+                "is_clock": false,
+                "name": "result",
+                "type_name": "boolean",
+                "width": 1
+            }
+        ]
+    },
+    "version": "unstable"
+}
