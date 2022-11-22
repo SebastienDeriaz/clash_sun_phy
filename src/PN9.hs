@@ -34,5 +34,3 @@ testBench = done
     testInput    = stimuliGenerator clk rst $(listToVecTH [1 :: Bit, 0, 0, 0, 0, 0, 0, 0])
     expectOutput = outputVerifier' clk rst $(listToVecTH [0 :: Bit, 0, 0, 0, 0, 0, 0, 0, 1])
     done         = expectOutput (withClockResetEnable clk rst en $ topEntity testInput)
-    
-    
