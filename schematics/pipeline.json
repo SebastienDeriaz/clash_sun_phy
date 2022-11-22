@@ -1,0 +1,11 @@
+{signal: [
+  {name: 'clk', 		wave: 'p........|...'},
+  {name: 'rst', 		wave: '10.......|...'},
+  {name: 'en',  		wave: '0........|...'},
+  {name: 'parameters', 	wave: 'x.3......|...', data: ['']},
+  {name: 'start', 		wave: '0.10.....|...'},
+  {name: 'busy_i', 		wave: '0.....10.|...'},
+  {name: 'data_o', 		wave: 'x..3333.3|33x', data:['b0', 'b1', 'b2', 'b3', 'b4', 'bn-2', 'bn-1']},
+  {name: 'valid_o', 	wave: '0..1........0'},
+  {name: 'end_0', 		wave: '0..........10'}
+]}
