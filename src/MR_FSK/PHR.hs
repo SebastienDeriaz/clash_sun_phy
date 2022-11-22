@@ -15,11 +15,12 @@ data PHR = PHR
 instance BitPack PHR where
   type BitSize PHR = 16
   pack PHR{..} =
-    pack phrModeSwitch
+    (pack phrModeSwitch)
       ++# (0b00 :: BitVector 2)
-      ++# pack phrFCS
-      ++# pack phrDataWhitening
-      ++# pack phrFrameLength
+      ++# (pack phrFCS)
+      ++# (pack phrDataWhitening)
+      ++# (pack phrFrameLength)
+
   unpack $(bitPattern "a..bcddddddddddd") =
     PHR
       { phrModeSwitch = unpack a
@@ -37,13 +38,10 @@ phr
   -> Signal dom Bit -- start
   -> Signal dom Bit -- busy_i
   -> Signal dom (Bit, Bit, Bit) -- end_o, valid_o, data_o
-phr ms fcs dw len start busy_i = bundle(end_o, valid_o, data_o) --bundle (testBit <$> phr <$> bitIndex, pure 1, pure 1)
+phr ms fcs dw len start busy_i = bundle(end_o, valid_o, data_o)
   where
     end_o = pure 0
     valid_o = pure 0
-    data_o = boolToBit <$> (testBit phr <$> (fromIntegral <$> bitIndex))
-    bitIndex = register (0 :: Unsigned 4) (bitIndex + 1)
-    -- phr :: BitVector 16 = PHR <$> ms <*> fcs <*> dw <*> len
-
-
--- testBit <$> phr <$> bitIndex :: Signal dom (Int -> Bool)
+    data_o = boolToBit <$> (testBit <$> header <*> (fromIntegral <$> bitIndex))
+    bitIndex = register (0 :: Unsigned 4) (bitIndex + 1) 
+    header = pack <$> (PHR <$> ms <*> fcs <*> dw <*> len)
