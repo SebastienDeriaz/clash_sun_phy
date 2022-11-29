@@ -8,7 +8,7 @@ from os.path import join, dirname
 
 from sun_phy.mr_fsk.mr_fsk_modulator import Mr_fsk_modulator, PHR_LENGTH
 
-def test_PHR(doprint=False):
+def test_PHR():
     filepath = join(dirname(__file__), 'PHR.hs')
 
     entity = Entity(filepath, 'phr')
@@ -19,7 +19,7 @@ def test_PHR(doprint=False):
         "phrDataWhitening" : Bit([0,0]),
         "phrFrameLength" : Unsigned(11, [0,0]),
         "start" : Bit([0,0]),
-        "busy_i" : Bit(0)
+        "busy" : Bit([0,0])
     }
 
     outputs = {
@@ -46,14 +46,19 @@ def test_PHR(doprint=False):
                 PHR_th = mod._PHR(phrFrameLength)
                 # Inputs
                 
+                inputs["busy"] += [0,0] + N_PHR // 2 * [0] + [1] + N_PHR // 2 * [0] + [0]
                 inputs["phrFCS"] += (N * [phrFCS])
                 inputs["phrDataWhitening"] += N * [phrDataWhitening]
                 inputs["phrFrameLength"] += N * [phrFrameLength]
                 inputs["start"] += [1] + (N-1) * [0]
                 # Outputs
-                outputs["end"] += [1] + N_PHR * [0] + 3 * [1]
-                outputs["valid"] += [0] + N_PHR * [1] + 3 * [0]
-                outputs["data"] += [0] + list(PHR_th) + 3 * [0]
+                outputs["end"] += [1] + (N_PHR+1) * [0] + 2 * [1]
+                outputs["valid"] += [0] + (N_PHR+1) * [1] + 2 * [0]
+                PHR_th_list = list(PHR_th)
+                outputs["data"] += [0] + \
+                    PHR_th_list[:len(PHR_th_list) // 2+1] + \
+                    [PHR_th_list[len(PHR_th_list) // 2+1]] + \
+                    PHR_th_list[len(PHR_th_list) // 2+1:] + 2 * [0]
 
     report = entity.test(inputs, outputs)
 
@@ -68,4 +73,4 @@ def test_PHR(doprint=False):
 
 
 if __name__ == '__main__':
-    test_PHR(True)
+    test_PHR()

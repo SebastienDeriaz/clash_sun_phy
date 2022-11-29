@@ -42,16 +42,16 @@ phr
   -> Signal dom (Unsigned 11) -- phrFrameLength :: Unsigned 11
   -> Signal dom Bit -- start
   -> Signal dom Bit -- busy
-  -> Signal dom (Bit, Bit, Bit) -- end_o, valid_o, data_o, bit index (testing)
+  -> Signal dom (Bit, Bit, Bit) -- end_o, valid_o, data_o
 phr ms fcs dw len start busy = bundle(end, valid, data_out)
   where
     -- Index of the PHR bit (start at 0)
     -- bitIndex++ if !busy && (bitIndex == 0 or start)
     bitIndex = register (0 :: Unsigned 4) nextBitIndex
-    nextBitIndex = mux running (bitIndex + 1) bitIndex
+    nextBitIndex = mux (running .&&. (busy .==. 0)) (bitIndex + 1) bitIndex
 
     running = register (False :: Bool) nextRunning
-    nextRunning = (busy .==. 0) .&&. ((nextBitIndex .>. 0) .||. (start .==. 1))
+    nextRunning = (nextBitIndex .>. 0) .||. (start .==. 1) --(busy .==. 0) .&&. ((nextBitIndex .>. 0) .||. (start .==. 1))
 
     --bitIndexMax :: Signal dom (Unsigned 4)
     bitIndexMax = pure (0b1111 :: Unsigned 4)
@@ -62,7 +62,7 @@ phr ms fcs dw len start busy = bundle(end, valid, data_out)
     end :: Signal dom Bit
     end = register (1 :: Bit) nextEnd
 
-    valid = boolToBit <$> running
+    valid = complement <$> end
     
     nextEnd = mux (bitToBool <$> end) (1 - start) (boolToBit <$> (bitIndex .==. bitIndexMax))
     data_out = boolToBit <$> (testBit <$> header <*> (fromIntegral <$> bitIndex))
