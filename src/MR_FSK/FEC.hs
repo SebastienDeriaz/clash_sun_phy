@@ -21,13 +21,6 @@ singleFec et b = mux bo rsc nrnsc
     rsc = rscEncoder b
     nrnsc = nrnscEncoder b
 
-multiFec
-  :: (HiddenClockResetEnable dom, KnownNat n)
-  => Signal dom EncoderType
-  -> Signal dom (BitVector n)
-  -> Signal dom (BitVector (n*2))
-multiFec = undefined
-
 rscEncoder
   :: HiddenClockResetEnable dom
   => Signal dom Bit
