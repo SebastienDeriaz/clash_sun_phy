@@ -1,5 +1,7 @@
 # Clash notes
 
+## Code
+
 ```haskell
 -- Unbundle a Signal Tuple (for example the topEntity input)
 key :: Signal dom (Unsigned 4, Unsigned 10)
@@ -30,4 +32,16 @@ output = uncurry (++#) <$> input
 -- Concatenate a signal (key) value with 0
 uncurry (++#) <$> bundle (0, key)
 
+
+-- Convert Boolean to Bit
+boolToBit <$> bool_signal
+
+
+-- Reset to signal
+signal = boolToBit <$> (unsafeFromReset $ hasReset)
+
 ```
+
+## Testbenches
+
+While simulating, the reset signal (when using reset gen) is of the form : [1, 0, 0, 0, 0, ...]
