@@ -1,0 +1,32 @@
+{"signal": [
+   {"wave": "P..........................", "name": "clk"},
+  {},
+  {"wave": "3..3............333......33", "data": ["Idle", "ReadA", "EndA", "WaitB", "ReadB", "EndB", "Idle"], "dir": "out", "name": "state", "type": "State", "order": 5},
+  {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxx", "data": [], "name": "state", "from": "state"},
+  {},
+  ["A",
+   {"wave": "1........0.1....0.........1", "dir": "out", "name": "a_ready", "type": "Bit", "order": 0},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out", "name": "a_ready (actual)", "type": "Bit", "from": "a_ready"},
+   {"wave": "0.1.............0..........", "dir": "in", "name": "a_valid", "type": "Bit", "order": 0},
+   {"wave": "0...1.0.....1...0..........", "dir": "in", "name": "a_data", "type": "Bit", "order": 1},
+   {"wave": "0..............10..........", "dir": "in", "name": "a_last", "type": "Bit", "order": 2}
+  ],
+  {},
+  ["B",
+   {"wave": "0...............1........0.", "dir": "out", "name": "b_ready", "type": "Bit", "order": 1},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out", "name": "b_ready (actual)", "type": "Bit", "from": "b_ready"},
+   {"wave": "0................1.......0.", "dir": "in", "name": "b_valid", "type": "Bit", "order": 3},
+   {"wave": "0.................1010.1.0.", "dir": "in", "name": "b_data", "type": "Bit", "order": 4},
+   {"wave": "0.......................10.", "dir": "in", "name": "b_last", "type": "Bit", "order": 5}
+  ],
+  {},
+  ["out",
+   {"wave": "1........0.1...............", "dir": "in", "name": "ready", "type": "Bit", "order": 6},
+   {"wave": "0..1.............01.......0", "dir": "out", "name": "valid", "type": "Bit", "order": 2},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out", "name": "valid (actual)", "type": "Bit", "from": "valid"},
+   {"wave": "0....1.0.....1...x01010.1.x", "dir": "out", "name": "data", "type": "Bit", "order": 3},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out", "name": "data (actual)", "type": "Bit", "from": "data"},
+   {"wave": "0........................10", "dir": "out", "name": "last", "type": "Bit", "order": 4},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out", "name": "last (actual)", "type": "Bit", "from": "last"}
+  ]
+]}
