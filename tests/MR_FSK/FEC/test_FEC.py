@@ -7,11 +7,12 @@ import numpy as np
 
 from sun_phy.mr_fsk.mr_fsk_modulator import Mr_fsk_modulator
 
-filepath = join(dirname(__file__), 'FEC.hs')
+fec = join(dirname(__file__), '../../../Sun_phy/MR_FSK/FEC.hs')
+fecB = join(dirname(__file__), '../../../Sun_phy/MR_FSK/FEC_B.hs')
 
 
 def test_RSC():
-    tb = Testbench(filepath, 'rscEncoder')
+    tb = Testbench(fec, 'rscEncoder')
 
     cg = Chronogram()
     
@@ -62,7 +63,7 @@ def test_RSC():
             s.print(True)
 
 def test_NRNSC():
-    tb = Testbench(filepath, 'nrnscEncoder')
+    tb = Testbench(fec, 'nrnscEncoder')
 
     cg = Chronogram()
     
@@ -116,9 +117,9 @@ def test_NRNSC():
 
 def test_FEC():
     
-    tb = Testbench(filepath, 'fec')
+    tb = Testbench(fec, 'fec')
 
-    for phyFSKFECScheme in [0, 1]:
+    for phyFSKFECScheme in [1]:
         mod = Mr_fsk_modulator(
             phyMRFSKSFD=0,
             modulation='2FSK',
@@ -129,14 +130,16 @@ def test_FEC():
             phyFSKFECInterleavingRSC=False)
 
         data = np.array([0,0,1,1,0,1,1,1])
-        fec_data = mod._FEC(data)
+        fec_out = mod._FEC(data)
+
+        print(f"{data} -> {fec_out}")
 
         
         cg = Chronogram(join(dirname(__file__), 'test_FEC.json'))
 
-        data_o = cg["data_o"]
-        data_o[4:4+len(fec_data)] = list(fec_data)
-        cg["data_o"] = data_o
+        #data_o = cg["data_o"]
+        #data_o[4:4+len(fec_data)] = list(fec_data)
+        #cg["data_o"] = data_o
 
         cg["phyFSKFECScheme"] = Signal("phyFSKFECScheme", [phyFSKFECScheme] * len(cg["data_o"]))
 
@@ -153,7 +156,7 @@ def test_FEC():
             cg["valid_o"],
             cg["data_o"],
             cg["last_o"],
-            None,#cg["state"],
+            cg["state"],
             None
         ])
 
@@ -163,10 +166,6 @@ def test_FEC():
             "data_o (actual)",
             "last_o (actual)",
             "state (actual)",
-            "ui0",
-            "ui1",
-            "enable",
-            "input",
             "test"
         ])
 
@@ -187,6 +186,54 @@ def test_FEC():
                 assert s.isValid(), s.message()
             else:
                 s.print(True)
+
+
+def test_FECB():
+    tb = Testbench(fecB, 'fecEncoder')
+        
+    cg = Chronogram(join(dirname(__file__), 'test_FEC_B_RSC.json'))
+
+    tb.setInputs([
+        cg["phyFSKFECScheme"],
+        cg["ready_i"],
+        cg["valid_i"],
+        cg["input"]
+    ])
+
+    tb.setExpectedOutputs([
+        None,
+        cg["ready_o"],
+        cg["data_o"],
+        cg["valid_o"],
+        #cg["state"]
+    ])
+
+    tb.setActualOutputsNames([
+        "m",
+        "ready_o (actual)",
+        "data_o (actual)",
+        "valid_o (actual)",
+        #"state (actual)"
+    ])
+
+    cg.setTemplates({
+        #"ready_o (actual)" : "ready_o"
+        #"data_o (actual)" : "data_o"
+    })
+
+    tb.run()
+
+    cg.setSignals(tb.actualOutputs())
+
+    cg.saveSVG(join(dirname(__file__), f'test_FEC_B_RSC.svg'))
+
+    for s in tb:
+        if s.isChecked():
+            s.print(True)
+            assert s.isValid(), s.message()
+        else:
+            s.print(True)
+
 
 if __name__ == '__main__':
     test_FEC()

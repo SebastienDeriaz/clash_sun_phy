@@ -1,0 +1,19 @@
+{"signal": [
+   {"wave": "P........................................", "name": "clk"},
+  {},
+   {"wave": "3...44344...34434....43443..443443443.", "data": ["Idle", "Out1", "Out0", "Idle", "Out1", "Out0", "Idle", "Out1", "Out0", "Idle", "Out1", "Out0", "Idle", "Out1", "Out0", "Idle", "Out1", "Out0", "Idle", "Out1", "Out0", "Idle", "Out1", "Out0", "Idle"], "name": "state"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "data": [], "name": "state (actual)"},
+  {},
+  {"wave": "1.....................................", "name": "phyFSKFECScheme", "dir": "in", "order": 0, "type": "Bit"},
+  {"wave": "0.1.....0..1....0...1.................", "name": "ready_i", "dir": "in", "order": 0, "type": "Bit"},
+  {"wave": "0..1...................0...1......0...", "name": "valid_i", "dir": "in", "order": 0, "type": "Bit"},
+  {"wave": "x..33..3.....3..3......x...33..3..xxxx", "data": [0,0,1,1,0,1,1,1],"name": "input", "dir": "in", "order": 0, "type": "Bit"},
+  {},
+  {"wave": "1...0.10....10.10.....10.1..0.10.10.1.", "name": "ready_o"},
+  {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "ready_o (actual)"},
+  {"wave": "0...33x33...x33x3....3x33x..33x33x33x.", "name": "data_o", "data": [0,0,0,0,1,1,0,1,0,0,0,1,0,1,0,1]},
+  {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "data_o (actual)"},
+  {"wave": "0...1.01....01.01.....01.0..1.01.01.0.", "name": "valid_o"},
+  {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "valid_o (actual)"},
+  {"wave": "0..10.10....10.10.....10...10.10.10...", "name": "enable"}
+]}
