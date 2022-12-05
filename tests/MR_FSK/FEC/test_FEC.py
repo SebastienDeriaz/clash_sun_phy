@@ -1,4 +1,4 @@
-# PHR testbench
+# FEC testbench
 #
 
 from clash_testbench import Chronogram, Testbench, Signal
