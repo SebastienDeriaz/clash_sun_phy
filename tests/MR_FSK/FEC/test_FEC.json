@@ -1,0 +1,27 @@
+{"signal": [
+   {"wave": "P........................................", "name": "clk"},
+  {},
+   {"wave": "3..3333333333333333333333...............", "data": ["Idle", "Read", "Wait", "Read", "Wait","Read", "Wait","Read", "Wait", "Read", "Wait", "Read", "Wait", "Read", "Wait", "Read", "ReadE", "Tail", "TailW", "Tail", "TailW", "Tail", "TailW"], "name": "state"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "data": [], "name": "state (actual)"},
+  {},
+  {"wave": "1.......................................", "name": "phyFSKFECScheme", "dir": "in", "order": 0, "type": "Bit"},
+  {},
+  ["Left",
+   {"wave": "0..1010101010101010.....................", "name": "ready_o", "order": 0, "type":"Bit", "dir": "out_exp"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "ready_o (actual)", "order": 0, "type":"Bit", "dir": "out_act"},
+   {"wave": "1.................0.....................", "name": "valid_i", "dir": "in", "order": 1, "type": "Bit"},
+   {"wave": "3...3.3.3.3.3.3.3.0.....................", "name": "data_i", "data": [0,0,1,1,0,1,1,1], "dir": "in", "order": 2, "type": "Bit"},
+   {"wave": "0...............1.0.....................", "name": "last_i", "dir": "in", "order": 3, "type": "Bit"}
+  ],
+  {},
+  ["Right",
+   {"wave": "0.1.....................................", "name": "ready_i", "dir": "in", "order": 4, "type": "Bit"},
+   {"wave": "0...1...............................0...", "name": "valid_o", "order": 1, "type": "Bit", "dir": "out_exp"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "valid_o (actual)", "order": 1, "type": "Bit", "dir": "out_act"},
+   {"wave": "xxxx33333333333333333333333333333333xxxx", "name": "data_o", "data": [1,1,1,1,0,0,0,1,0,1,0,0,1,0,1,0,1,0,1,1,0,0,1,1,0,0,1,0,1,1,1,0], "order": 2, "type": "Bit", "dir": "out_exp"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "data_o (actual)", "order": 2, "type": "Bit", "dir": "out_act"},
+   {"wave": "0..................................10...", "name": "last_o", "order": 3, "type": "Bit", "dir": "out_exp"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "last_o (actual)", "order": 3, "type": "Bit", "dir": "out_act"}
+  ],
+  {}
+]}

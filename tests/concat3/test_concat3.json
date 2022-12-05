@@ -1,0 +1,40 @@
+{"signal": [
+   {"wave": "P........................................", "name": "clk"},
+  {},
+  {"wave": "3..3............333......33..3......33...", "data": ["Idle", "ReadA", "EndA", "WaitB", "ReadB", "EndB", "WaitC", "ReadC", "EndC", "Idle"], "dir": "out_exp", "name": "state", "type": "State", "order": 6},
+  {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "data": [], "name": "state", "dir": "out_act", "order": 6},
+  {},
+  ["A",
+   {"wave": "1........0.1....0....................1...", "dir": "out_exp", "name": "a_ready", "type": "Bit", "order": 0},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out_act", "name": "a_ready (actual)", "type": "Bit", "order": 0},
+   {"wave": "0.1.............0...............1..0.....", "dir": "in", "name": "a_valid", "type": "Bit", "order": 0},
+   {"wave": "0.333333330.33330..........33333330......", "dir": "in", "name": "a_data", "type": "Bit", "order": 1, "data": [0,0,1,1,0,0,0,0,1,1,1,1,0,0,1,0,1,1,0]},
+   {"wave": "0..............10..........1.0...10......", "dir": "in", "name": "a_last", "type": "Bit", "order": 2}
+  ],
+  {},
+  ["B",
+   {"wave": "0...............1........0...............", "dir": "out_exp", "name": "b_ready", "type": "Bit", "order": 1},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out_act", "name": "b_ready (actual)", "type": "Bit", "order": 1},
+   {"wave": "0................1.......0....1..0..10...", "dir": "in", "name": "b_valid", "type": "Bit", "order": 3},
+   {"wave": "0................333333330.......1.0.....", "dir": "in", "name": "b_data", "type": "Bit", "order": 4, "data": [0,1,0,1,1,1,0,1]},
+   {"wave": "0.......................10.....1.0..10...", "dir": "in", "name": "b_last", "type": "Bit", "order": 5}
+  ],
+  {},
+  ["C",
+   {"wave": "0........................1..........0....", "dir": "out_exp", "name": "c_ready", "type": "Bit", "order": 2},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out_act", "name": "c_ready (actual)", "type": "Bit", "order": 2},
+   {"wave": "0...........................1.......0....", "dir": "in", "name": "c_valid", "type": "Bit", "order": 6},
+   {"wave": "0...........................333333330....", "dir": "in", "name": "c_data", "type": "Bit", "order": 7, "data": [0,0,1,0,1,1,0,1]},
+   {"wave": "0..................................10....", "dir": "in", "name": "c_last", "type": "Bit", "order": 8}
+  ],
+  {},
+  ["out",
+   {"wave": "1........0.1.............................", "dir": "in", "name": "ready", "type": "Bit", "order": 9},
+   {"wave": "0..1......0.1....01.......0..1.......0...", "dir": "out_exp", "name": "valid", "type": "Bit", "order": 3},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out_act", "name": "valid (actual)", "type": "Bit", "order": 3},
+   {"wave": "xxx3333333..33333x33333333x..33333333xxxx", "data": [0,0,1,1,0,0,0,0,1,1,1,1,0,1,0,1,1,1,0,1,0,0,1,0,1,1,0,1], "dir": "out_exp", "name": "data", "type": "Bit", "order": 4},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out_act", "name": "data (actual)", "type": "Bit", "order": 4},
+   {"wave": "0...................................10...", "dir": "out_exp", "name": "last", "type": "Bit", "order": 5},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "dir": "out_act", "name": "last (actual)", "type": "Bit", "order": 5}
+  ]
+]}
