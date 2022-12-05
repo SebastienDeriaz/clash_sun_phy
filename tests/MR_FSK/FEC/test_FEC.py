@@ -170,7 +170,6 @@ def test_FEC():
         ])
 
         cg.setTemplates({
-            #"ready_o (actual)" : "ready_o"
             "data_o (actual)" : "data_o"
         })
 

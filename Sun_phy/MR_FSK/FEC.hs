@@ -7,7 +7,7 @@ module Sun_phy.MR_FSK.FEC where
 import Clash.Prelude hiding (foldr)
 import Data.Foldable (foldr)
 
-import Sun_phy.MR_FSK.FEC_B (fecEncoder)
+import Sun_phy.MR_FSK.FEC_B (fecEncoder, FecEncoderState)
 
 
 tailVec :: (BitVector 3) -> Bit -> BitVector 3
@@ -112,8 +112,8 @@ fec
   -> Signal dom Bit -- data_i
   -> Signal dom Bit -- last_i
   -> Signal dom Bit -- ready_i
-  -> Signal dom (Bit, Bit, Bit, Bit, State, Unsigned 4) -- ready_o, valid_o, data_o, last_o
-fec phyFSKFECScheme valid_i data_i last_i ready_i = bundle(ready_o, valid_o, data_o, last_o, state, bitCounter)
+  -> Signal dom (Bit, Bit, Bit, Bit, State, FecEncoderState) -- ready_o, valid_o, data_o, last_o
+fec phyFSKFECScheme valid_i data_i last_i ready_i = bundle(ready_o, valid_o, data_o, last_o, state, encoderState)
   where
     state = register (Idle :: State) nextState
     nextState = f_nextState <$> state <*> ready_o <*> encoderValid_i' <*> last_i <*> tailCounterEnd <*> padCounterEnd
@@ -143,7 +143,7 @@ fec phyFSKFECScheme valid_i data_i last_i ready_i = bundle(ready_o, valid_o, dat
 
     mReg = register (0 :: BitVector 3) nextMReg
     nextMReg = mux (state .==. (pure Data) .&&. last_i .==. (pure 1)) m mReg
-    (m, ready_o, data_o, valid_o) = unbundle $ fecEncoder phyFSKFECScheme encoderReady_i' encoderValid_i' encoderInput'
+    (m, ready_o, data_o, valid_o, encoderState) = unbundle $ fecEncoder phyFSKFECScheme encoderReady_i' encoderValid_i' encoderInput'
 
     -- Output
     last_o = boolToBit <$> (state .==. pure Last)

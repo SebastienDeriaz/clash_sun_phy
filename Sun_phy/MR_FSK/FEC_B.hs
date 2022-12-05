@@ -6,9 +6,6 @@ module Sun_phy.MR_FSK.FEC_B where
 import Clash.Prelude hiding (foldr)
 import Data.Foldable (foldr)
 
-
-
-
 -- State machine
 data FecEncoderState = Idle
            | Out1
@@ -18,20 +15,18 @@ data FecEncoderState = Idle
   deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
   deriving anyclass NFDataX
 
-
-
-
-nextState :: FecEncoderState -> Bit -> Bit -> FecEncoderState 
---        State ready_i valid_i
+nextState :: FecEncoderState -> Bit -> Bit -> Bit -> FecEncoderState 
+--        State ready_i ready_o valid_i
 -- Idl
-nextState Idle  1 1 = Out1
-nextState Idle  _ _ = Idle
+nextState Idle  1 _ 1 = Out1
+nextState Idle  0 1 1 = Out1 -- If we aren't ready but the ready_o flag was on, accept the data anyway
+nextState Idle  _ _ _ = Idle
 -- Out1
-nextState Out1  1 _ = Out0
-nextState Out1  0 _ = Out1
+nextState Out1  1 _ _ = Out0
+nextState Out1  0 _ _ = Out1
 -- Out0
-nextState Out0  1 _ = Idle
-nextState Out0  0 _ = Out0
+nextState Out0  1 _ _ = Idle
+nextState Out0  0 _ _ = Out0
 
 data_out :: FecEncoderState -> Bit -> Bit -> Bit
 data_out Out0  ui0 _   = ui0
@@ -54,10 +49,10 @@ fecEncoder
   -> Signal dom Bit -- ready_i
   -> Signal dom Bit -- valid_i
   -> Signal dom Bit -- Input
-  -> Signal dom (BitVector 3, Bit, Bit, Bit) -- m, ready_o, data_out, valid_o
-fecEncoder phyFSKFECScheme ready_i valid_i inp = bundle (m, ready_o, data_o, valid_o)
+  -> Signal dom (BitVector 3, Bit, Bit, Bit, FecEncoderState) -- m, ready_o, data_out, valid_o
+fecEncoder phyFSKFECScheme ready_i valid_i inp = bundle (m, ready_o, data_o, valid_o, state)
   where
-    state = register (Idle) (nextState <$> state <*> ready_i <*> valid_i)
+    state = register (Idle) (nextState <$> state <*> ready_i <*> ready_o <*> valid_i)
 
     (m, ui0, ui1) = unbundle $ mux (bitToBool <$> phyFSKFECScheme) rsc nrnsc
 
