@@ -1,0 +1,40 @@
+{"signal": [
+   {"wave": "P........................................", "name": "clk"},
+  {},
+  {"wave": "3...............3.........3.......3......", "data": ["A", "B", "C", "A"], "name": "state"},
+  {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "data": [], "name": "state (actual)"},
+  {},
+  ["A",
+   {"wave": "1........0.1....0.................1......", "name": "a_ready_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "a_ready_o (actual)"},
+   {"wave": "1...............0.............1..0.......", "name": "a_valid_i"},
+   {"wave": "3..3333333..33330..........22222220......", "name": "a_data_i", "data": [0,0,1,1,0,0,0,0,1,1,1,1,0,0,1,0,1,1,0]},
+   {"wave": "0..............10..........1.0...10......", "name": "a_last_i"}
+  ],
+  {},
+  ["B",
+   {"wave": "0...............1.........0..............", "name": "b_ready_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "b_ready_o (actual)"},
+   {"wave": "0.................1.......0....1..0..10..", "name": "b_valid_i"},
+   {"wave": "0.................444444440.......1.0....", "name": "b_data_i", "data": [0,1,0,1,1,1,0,1]},
+   {"wave": "0........................10.....1.0..10..", "name": "b_last_i"}
+  ],
+  {},
+  ["C",
+   {"wave": "0.........................1.......0......", "name": "c_ready_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "c_ready_o (actual)"},
+   {"wave": "1.................................0......", "name": "c_valid_i"},
+   {"wave": "0.........................555555550......", "name": "c_data_i", "data": [0,0,1,0,1,1,0,1]},
+   {"wave": "0................................10......", "name": "c_last_i"}
+  ],
+  {},
+  ["out",
+   {"wave": "1........0.1.............................", "name": "ready_i"},
+   {"wave": "1...............0.1...............0......", "name": "valid_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "valid_o (actual)"},
+   {"wave": "3..333333..333330.44444444555555550......", "data": [0,0,1,1,0,0,0,0,1,1,1,1,0,1,0,1,1,1,0,1,0,0,1,0,1,1,0,1], "name": "data_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "data_o (actual)"},
+   {"wave": "0................................10......", "name": "last_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "last_o (actual)"}
+  ]
+]}

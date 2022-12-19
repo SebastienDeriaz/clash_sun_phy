@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Sun_phy.MR_FSK.PSDU where
+module Tests.MR_FSK.MR_FSK_modulator.PSDU where
 
 import Clash.Prelude
 
@@ -32,8 +32,9 @@ nextBitIndex _       _ x = 0
 psdu
   :: forall dom . (HiddenClockResetEnable dom)
   => Signal dom Bit -- ready_i
-  -> Signal dom (Bit, Bit, Bit) -- valid_o, data_o, last_o
-psdu ready_i = bundle(valid_o, data_o, last_o)
+  -> Signal dom Bit -- valid_i
+  -> Signal dom (Bit, Bit, Bit, Unsigned 11) -- valid_o, data_o, last_o
+psdu ready_i valid_i = bundle(valid_o, data_o, last_o, phrFrameLength)
   where
     state = register Idle (nextState <$> state <*> ready_i <*> last_o)
 
@@ -45,11 +46,13 @@ psdu ready_i = bundle(valid_o, data_o, last_o)
 
     psdu_data = pure (0b1111_0000_1111_0000_1111_0000_1111_0011 :: BitVector 32)
 
+    phrFrameLength = pure 4
+
     -- End of the transmission
     -- end=0 when start == 1
     -- end=1 when bitIndex == 15
     last_o = boolToBit <$> (bitIndex .==. bitIndexMax)
 
-    valid_o = pure 1
+    valid_o = register 0 valid_i
     data_o = boolToBit <$> (testBit <$> psdu_data <*> (fromIntegral <$> bitIndex))
     

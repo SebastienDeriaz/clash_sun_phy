@@ -1,10 +1,7 @@
-module PN9 where
+module Sun_phy.PN9 where
 
 import Clash.Prelude
-import Clash.Explicit.Testbench
 import Data.Bits
-
-{-# NOINLINE topEntity #-}
 
 pn9_next :: Bits a => a -> a
 pn9_next a = (a `shiftR` 1) .|. next
@@ -12,25 +9,21 @@ pn9_next a = (a `shiftR` 1) .|. next
     next = ((a `shiftL` 3) `xor` (a `shiftL` 8)) .&. (bit 8)
 
 
-reg_next :: Bits a => Bit -> a -> a
-reg_next next previous
-  | next == 0 = previous
-  | next == 1 = pn9_next previous
+reg_init = 511 :: BitVector 9
+
+reg_next :: Bit -> Bit -> BitVector 9 -> BitVector 9
+-- next_i reset_i reg
+reg_next _ 1 _ = reg_init
+reg_next 1 0 x = pn9_next x
+reg_next 0 0 x = x
 
 
-topEntity :: HiddenClockResetEnable System
-    => Signal System Bit -- next
-    -> Signal System Bit -- output
-topEntity request_next = msb <$> reg
+pn9 :: forall dom . HiddenClockResetEnable dom
+    => Signal dom Bit -- next_i
+    -> Signal dom Bit -- reset_i
+    -> Signal dom Bit -- data_o
+pn9 next_i reset_i = data_o
   where
-    reg = register (511 :: (BitVector 9)) ((reg_next <$> request_next) <*> reg)
-
-testBench :: Signal System Bool
-testBench = done
-  where
-    clk          = tbSystemClockGen (not <$> done)
-    rst          = systemResetGen
-    en           = enableGen
-    testInput    = stimuliGenerator clk rst $(listToVecTH [1 :: Bit, 0, 0, 0, 0, 0, 0, 0])
-    expectOutput = outputVerifier' clk rst $(listToVecTH [0 :: Bit, 0, 0, 0, 0, 0, 0, 0, 1])
-    done         = expectOutput (withClockResetEnable clk rst en $ topEntity testInput)
+    data_o = msb <$> regNext
+    reg = register (reg_init) regNext
+    regNext = reg_next <$> next_i <*> reset_i <*> reg

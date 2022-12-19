@@ -1,0 +1,32 @@
+{"signal": [
+   {"wave": "P...........................", "name": "clk"},
+  {},
+  {"wave": "3...............3.........3.", "data": ["A", "B", "A"], "name": "state"},
+  {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx", "data": [], "name": "state (actual)"},
+  {},
+  ["A",
+   {"wave": "0.1......0.1....0.........1.", "name": "a_ready_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "a_ready_o (actual)"},
+   {"wave": "1...............0...........", "name": "a_valid_i"},
+   {"wave": "3..3333333..33330...........", "name": "a_data_i", "data": [0,0,1,1,0,0,0,0,1,1,1,1]},
+   {"wave": "0..............10...........", "name": "a_last_i"}
+  ],
+  {},
+  ["B",
+   {"wave": "0...............1......0.10.", "name": "b_ready_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "b_ready_o (actual)"},
+   {"wave": "1.........................0.", "name": "b_valid_i"},
+   {"wave": "3................3333333..0.", "name": "b_data_i", "data": [0,1,0,1,0,0,1,1]},
+   {"wave": "0......................1..0.", "name": "b_last_i"}
+  ],
+  {},
+  ["out",
+   {"wave": "0.1......0.1...........0.1..", "name": "ready_i"},
+   {"wave": "1.........................0.", "name": "valid_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "valid_o (actual)"},
+   {"wave": "0.33333333..333344444444..0.", "name": "data_o", "data": [0,0,1,1,0,0,0,0,1,1,1,1,0,1,0,1,0,0,1,1]},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "data_o (actual)"},
+   {"wave": "0......................1..0.", "name": "last_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "last_o (actual)"}
+  ]
+]}

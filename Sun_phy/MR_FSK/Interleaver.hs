@@ -21,7 +21,9 @@ module Sun_phy.MR_FSK.Interleaver where
 --  30,31,22,23,14,15,6,7,28,29,20,21,12,13,4,5,26,27,18,19,10,11,2,3,24,25,16,17,8,9,0,1
 --
 -- Note that each index is a singular bit
+
 import Clash.Prelude
+import Sun_phy.Bypass (bypass)
 
 
 -- State machine
@@ -69,6 +71,12 @@ ready Idle = 1
 ready Write = 1
 ready Read = 0
 
+nextLastStore :: State -> Bit -> Bit -> Bit
+nextLastStore Write 1 _ = 1
+nextLastStore Idle  _ _ = 0
+nextLastStore _     _ x = x
+
+
 
 outputIndex :: Unsigned 5 -> Unsigned 5
 -- counter
@@ -83,27 +91,35 @@ outputIndex counter = output
 
 interleaver
   :: forall dom . HiddenClockResetEnable dom
-  => Signal dom Bit -- valid_i
+  => Signal dom Bit -- bypass
+  -> Signal dom Bit -- valid_i
   -> Signal dom Bit -- data_i
   -> Signal dom Bit -- last_i
   -> Signal dom Bit -- ready_i
-  -> Signal dom (Bit, Bit, Bit, Bit, State) -- ready_o, data_o, valid_o, last_o, test
-interleaver valid_i data_i last_i ready_i = bundle(ready_o, data_o, valid_o, last_o, state)
+  -> Signal dom (Bit, Bit, Bit, Bit) -- ready_o, data_o, valid_o, last_o, test
+interleaver bp valid_i data_i last_i ready_i = bundle(ready_o, data_o, valid_o, last_o)
   where
     counter = register (0 :: Unsigned 5) $ nextCounter <$> state <*> valid_i <*> ready_o <*> (boolToBit <$> counterEnd) <*> ready_i <*> counter
     counterEnd = counter .==. (pure 31)
 
-    slaveWrite = boolToBit <$> ((bitToBool <$> ready_i) .&&. (bitToBool <$> valid_o))
-    masterWrite = boolToBit <$> ((bitToBool <$> ready_o) .&&. (bitToBool <$> valid_i))
+    lastStore = register (0 :: Bit) (nextLastStore <$> state <*> last_i <*> lastStore)
+
+    slaveWrite = boolToBit <$> ((bitToBool <$> ready_i) .&&. (bitToBool <$> valid_out))
+    masterWrite = boolToBit <$> ((bitToBool <$> ready_out) .&&. (bitToBool <$> valid_i))
 
     state = register Idle $ nextState <$> state <*> valid_i <*> (boolToBit <$> counterEnd)
 
     buffer = register (0 :: BitVector 32) $ nextBuffer <$> state <*> masterWrite <*> slaveWrite <*> counter <*> data_i <*> buffer
 
-    ready_o = ready <$> state
     output = boolToBit <$> (testBit <$> buffer <*> (fromEnum <$> (outputIndex <$> counter)))
-    data_o = mux (state .==. (pure Read)) output (pure 0)
-    valid_o = boolToBit <$> (state .==. pure Read)
-    last_o = pure 0
-    
 
+    ready_out = ready <$> state
+    valid_out = boolToBit <$> (state .==. pure Read)
+    -- Bypass
+    (bypassValid_o, bypassData_o, bypassLast_o, bypassReady_o) = unbundle $ bypass valid_i data_i last_i ready_i
+    -- Outputs
+    bpb = bitToBool <$> bp
+    ready_o = mux bpb bypassReady_o ready_out
+    valid_o = mux bpb bypassValid_o valid_out
+    data_o  = mux bpb bypassData_o (mux (state .==. (pure Read)) output (pure 0))
+    last_o  = mux bpb bypassLast_o $ boolToBit <$> (state .==. pure Read .&&. (lastStore .==. 1) .&&. counterEnd)

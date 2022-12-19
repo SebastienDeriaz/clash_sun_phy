@@ -9,6 +9,7 @@ import Data.Foldable (foldr)
 
 import Sun_phy.MR_FSK.FEC_B (fecEncoder, FecEncoderState)
 
+import Sun_phy.Bypass
 
 tailVec :: (BitVector 3) -> Bit -> BitVector 3
 --       m     phyFSKFECScheme
@@ -22,9 +23,6 @@ tailVec 0b101 _ = 0b110
 tailVec 0b110 _ = 0b100
 tailVec 0b111 _ = 0b101
 
-
-
-
 -- State machine
 data State = Idle
            | Data
@@ -35,24 +33,25 @@ data State = Idle
   deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
   deriving anyclass NFDataX
 
--- state ready_o encoderValid_i last_i tailCounterEnd padCounterEnd
-f_nextState :: State -> Bit -> Bit -> Bit -> Bit -> Bit -> State
+-- state bypass ready_o encoderValid_i last_i tailCounterEnd padCounterEnd
+f_nextState :: State -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> State
+f_nextState _    1 _ _ _ _ _ = Idle
 -- Idle
-f_nextState Idle 1 1 _ _ _ = Data
-f_nextState Idle _ _ _ _ _ = Idle
+f_nextState Idle _ 1 1 _ _ _ = Data
+f_nextState Idle _ _ _ _ _ _ = Idle
 -- Data
-f_nextState Data 1 1 1 _ _ = Tail
-f_nextState Data _ _ _ _ _ = Data
+f_nextState Data _ 1 1 1 _ _ = Tail
+f_nextState Data _ _ _ _ _ _ = Data
 -- Tail
-f_nextState Tail 1 1 _ 1 _ = Pad
-f_nextState Tail _ _ _ _ _ = Tail
+f_nextState Tail _ 1 1 _ 1 _ = Pad
+f_nextState Tail _ _ _ _ _ _ = Tail
 -- Pad
-f_nextState Pad  1 1 _ _ 1 = End
-f_nextState Pad  _ _ _ _ _ = Pad
+f_nextState Pad  _ 1 1 _ _ 1 = End
+f_nextState Pad  _ _ _ _ _ _ = Pad
 -- End
-f_nextState End  _ _ _ _ _ = Last
+f_nextState End  _ _ _ _ _ _ = Last
 -- Last
-f_nextState Last _ _ _ _ _ = Idle
+f_nextState Last _ _ _ _ _ _ = Idle
 
 
 
@@ -107,29 +106,29 @@ f_nextBitCounter _    _ _ x = x
 
 fec
   :: forall dom . HiddenClockResetEnable dom
-  => Signal dom Bit -- phyFSKFECScheme : 1 -> RSC, 0 -> NRNSC
+  => Signal dom Bit -- bypass
+  -> Signal dom Bit -- phyFSKFECScheme : 1 -> RSC, 0 -> NRNSC
   -> Signal dom Bit -- valid_i
   -> Signal dom Bit -- data_i
   -> Signal dom Bit -- last_i
   -> Signal dom Bit -- ready_i
-  -> Signal dom (Bit, Bit, Bit, Bit, State, FecEncoderState) -- ready_o, valid_o, data_o, last_o
-fec phyFSKFECScheme valid_i data_i last_i ready_i = bundle(ready_o, valid_o, data_o, last_o, state, encoderState)
+  -> Signal dom (Bit, Bit, Bit, Bit) -- ready_o, valid_o, data_o, last_o
+fec bp phyFSKFECScheme valid_i data_i last_i ready_i = bundle(ready_o, valid_o, data_o, last_o)
   where
     state = register (Idle :: State) nextState
-    nextState = f_nextState <$> state <*> ready_o <*> encoderValid_i' <*> last_i <*> tailCounterEnd <*> padCounterEnd
-
+    nextState = f_nextState <$> state <*> bp <*> encoderReady_o <*> encoderValid_i' <*> last_i <*> tailCounterEnd <*> padCounterEnd
 
     -- Bit counter (to determine if there's an even or odd number of bytes)
-    bitCounter = register (0 :: Unsigned 4) (f_nextBitCounter <$> state <*> ready_o <*> valid_i <*> bitCounter)
+    bitCounter = register (0 :: Unsigned 4) (f_nextBitCounter <$> state <*> encoderReady_o <*> valid_i <*> bitCounter)
     -- Even number of bytes when the 4th bit of bitCounter is low
     evenNBytes = not <$> (testBit <$> bitCounter <*> 3)
     
     -- Tail counter
-    tailCounter = register (0 :: Unsigned 2) (nextTailCounter <$> state <*> tailCounterEnd <*> ready_o <*> tailCounter)
+    tailCounter = register (0 :: Unsigned 2) (nextTailCounter <$> state <*> tailCounterEnd <*> encoderReady_o <*> tailCounter)
     tailCounterEnd = boolToBit <$> (tailCounter .==. 2)
 
     -- Pad counter (4->0 or 12->0)
-    padCounter = register (0 :: Unsigned 4) (nextPadCounter <$> state <*> padCounterEnd <*> ready_o <*> padCounter)
+    padCounter = register (0 :: Unsigned 4) (nextPadCounter <$> state <*> padCounterEnd <*> encoderReady_o <*> padCounter)
     padCounterEnd = boolToBit <$> (padCounter .==. (padCounterMax <$> evenNBytes))
 
     pad = boolToBit <$> (testBit pad_bits <$> (fromEnum <$> padCounter))
@@ -143,10 +142,16 @@ fec phyFSKFECScheme valid_i data_i last_i ready_i = bundle(ready_o, valid_o, dat
 
     mReg = register (0 :: BitVector 3) nextMReg
     nextMReg = mux (state .==. (pure Data) .&&. last_i .==. (pure 1)) m mReg
-    (m, ready_o, data_o, valid_o, encoderState) = unbundle $ fecEncoder phyFSKFECScheme encoderReady_i' encoderValid_i' encoderInput'
+    (m, encoderReady_o, encoderData_o, encoderValid_o, encoderState) = unbundle $ fecEncoder phyFSKFECScheme encoderReady_i' encoderValid_i' encoderInput'
 
-    -- Output
-    last_o = boolToBit <$> (state .==. pure Last)
+    -- Bypass
+    (bypassValid_o, bypassData_o, bypassLast_o, bypassReady_o) = unbundle $ bypass valid_i data_i last_i ready_i
+    -- Outputs
+    bpb = bitToBool <$> bp
+    ready_o = mux bpb bypassReady_o encoderReady_o
+    valid_o = mux bpb bypassValid_o encoderValid_o
+    data_o  = mux bpb bypassData_o encoderData_o
+    last_o  = mux bpb bypassLast_o (boolToBit <$> (state .==. pure Last))
 
 
 
