@@ -65,7 +65,7 @@ bitCounterMax Preamble x = preambleSequenceLength x
 bitCounterMax SFD      x = sfdLength x
 
 nextBitCounter :: State -> Bool -> Bit -> Unsigned 5 -> Unsigned 5
--- State, bitCounterEnd, ready_i, bitCounter
+-- State, bitCounterEnd, slaveWrite, bitCounter
 -- Idle
 nextBitCounter Finish _   _ _ = 0
 nextBitCounter Idle _     0 _ = 0
@@ -112,10 +112,12 @@ shr
   where
     state = register (Idle :: State) (nextState <$> state <*> ready_i <*> preambleCounterEnd <*> bitCounterEnd)
 
+    slaveWrite = ready_i * valid_o
+
     preambleCounter = register (0 :: Unsigned 10) (nextPreambleCounter <$> state <*> bitCounterEnd <*> ready_i <*> preambleCounter)
     preambleCounterEnd = preambleCounter .==. (phyFSKPreambleLength - 1)
 
-    bitCounter = register (0 :: Unsigned 5) (nextBitCounter <$> state <*> bitCounterEnd <*> ready_i <*> bitCounter)
+    bitCounter = register (0 :: Unsigned 5) (nextBitCounter <$> state <*> bitCounterEnd <*> slaveWrite <*> bitCounter)
     bitCounterEnd = bitCounter .==. (bitCounterMax <$> state <*> fsk2_nfsk4)
 
     sfd_bit = boolToBit <$> (testBit <$> (sfd <$> fsk2_nfsk4 <*> phyMRFSKSFD <*> phyFSKFECEnabled) <*> (fromEnum <$> bitCounter))

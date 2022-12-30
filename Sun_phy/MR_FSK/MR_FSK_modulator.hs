@@ -2,7 +2,6 @@ module Sun_phy.MR_FSK.MR_FSK_modulator where
 
 import Clash.Prelude
 
-
 import Sun_phy.MR_FSK.PHR (phr)
 import Sun_phy.MR_FSK.PSDU (psdu)
 import Sun_phy.Concat2 (concat2)
@@ -19,11 +18,10 @@ nextReady 1 1 _ = 0
 nextReady 0 _ 1 = 1
 nextReady x _ _ = x
 
-
 splitterCounter :: Bit -> Unsigned 10
 -- phyFSKFECEnabled
-splitterCounter 0 = 15
-splitterCounter 1 = 31
+splitterCounter 0 = 16
+splitterCounter 1 = 32
 
 mrFskModulator
   :: forall dom . HiddenClockResetEnable dom
@@ -71,11 +69,10 @@ mrFskModulator
    where
     phrModeSwitch = pure 0
 
-    test0 = interleaver_ready_i
-    test1 = interleaver_valid_o
-    test2 = interleaver_data_o
+    test0 = splitter2_a_valid_o
+    test1 = splitter2_a_last_o
+    test2 = interleaver_valid_o
     test3 = interleaver_last_o
-
 
     -- PSDU is external
     -- PHR
@@ -104,7 +101,7 @@ mrFskModulator
       (splitterCounter <$> phyFSKFECEnabled)
     -- Scrambler
     scrambler_bypass = (1-phyFSKScramblePSDU)
-    (splitter2_b_ready_i, scrambler_valid_o, scrambler_data_o, scrambler_last_o) = unbundle $ scrambler scrambler_bypass scrambler_ready_i splitter2_b_valid_o splitter2_b_data_o splitter2_b_last_o
+    (splitter2_b_ready_i, scrambler_valid_o, scrambler_data_o, scrambler_last_o) = unbundle $ scrambler scrambler_bypass scrambler_ready_i splitter2_b_valid_o splitter2_b_data_o splitter2_b_last_o (pure 511)
     -- SHR
     (shr_valid_o, shr_data_o, shr_last_o) = unbundle $ shr shr_ready_i modulation phyMRFSKSFD phyFSKFECEnabled phyFSKPreambleLength valid_i
     -- Concat3
