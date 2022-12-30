@@ -15,11 +15,11 @@ data State = A
 -- sel = 0 -> B
 
 
-nextState :: State -> Bool -> Bit -> State
--- state, counterEnd, last_i
-nextState A True _ = B
-nextState B _    1 = A
-nextState x _    _ = x
+nextState :: State -> Bool -> Bit -> Bit -> Bit -> State
+-- state, counterEnd, last_i, aWrite, bWrite
+nextState A True _ 1 _ = B
+nextState B _    1 _ 1 = A
+nextState x _    _ _ _ = x
 
 nextCounter :: Bit -> Bit -> Bit -> Unsigned 10 -> Unsigned 10
 -- aWrite, counterEnd, last
@@ -35,19 +35,22 @@ splitter2
     -> Signal dom Bit -- last_i
     -> Signal dom Bit -- a_ready_i
     -> Signal dom Bit -- b_ready_i
-    -> Signal dom (Unsigned 10) -- counter
+    -> Signal dom (Unsigned 10) -- a_length
     -> Signal dom (Bit, Bit, Bit, Bit, Bit, Bit, Bit) -- ready_o, a_valid_o, a_data_o, a_last_o, b_valid_o, b_data_o, b_last_o
-splitter2 valid_i data_i last_i a_ready_i b_ready_i counter_i = bundle(ready_o, a_valid_o, a_data_o, a_last_o, b_valid_o, b_data_o, b_last_o)
+splitter2 valid_i data_i last_i a_ready_i b_ready_i a_length = bundle(ready_o, a_valid_o, a_data_o, a_last_o, b_valid_o, b_data_o, b_last_o)
   where
     aWrite = a_ready_i * a_valid_o
+    bWrite = b_ready_i * b_valid_o
 
     counter = register (0 :: Unsigned 10) $ nextCounter <$> aWrite <*> (boolToBit <$> counterEnd) <*> last_i <*> counter
-    counterEnd = counter .==. counter_i
 
-    state = register A $ nextState <$> state <*> counterEnd <*> last_i
+    counterEnd = counter .==. (a_length - 1)
+
+    state = register A $ nextState'
+    nextState' = nextState <$> state <*> counterEnd <*> last_i <*> aWrite <*> bWrite
 
 
-    ready_o   = mux (state .==. pure A) a_ready_i b_ready_i 
+    ready_o   = mux (state .==. pure A) a_ready_i b_ready_i
     a_valid_o = mux (state .==. pure A) valid_i   (pure 0) 
     a_data_o  = mux (state .==. pure A) data_i    (pure 0) 
     b_valid_o = mux (state .==. pure A) (pure 0)  valid_i

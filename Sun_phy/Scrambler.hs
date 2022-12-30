@@ -32,24 +32,24 @@ scrambler
     -> Signal dom Bit -- valid_i
     -> Signal dom Bit -- data_i
     -> Signal dom Bit -- last_i
+    -> Signal dom (BitVector 9) -- pn9_seed
     -> Signal dom (Bit, Bit, Bit, Bit) -- ready_o, valid_o, data_o, last_o
-scrambler bypass ready_i valid_i data_i last_i = bundle(ready_o, valid_o, data_o, last_o)
+scrambler bypass ready_i valid_i data_i last_i pn9_seed = bundle(ready_o, valid_o, data_o, last_o)
   where
     slaveWrite = ready_i * valid_o
     masterWrite = ready_o * valid_i
 
     buffer = register (0 :: Unsigned 2) nextBuffer'
-    nextBuffer' = (nextBuffer <$> slaveWrite <*> masterWrite <*> buffer)
+    nextBuffer' = nextBuffer <$> slaveWrite <*> masterWrite <*> buffer
     a_nb = buffer ./=. pure 2
 
     lastEnable = register (0 :: Bit) (nextLastEnable <$> lastEnable <*> buffer <*> last_i)
 
     pn9_next = masterWrite
-    --pn9_reset = last_o
-    pn9_reset = pure 0
+    pn9_reset = last_o
 
     pn9_value :: Signal dom Bit
-    pn9_value = pn9 pn9_next pn9_reset
+    pn9_value = pn9 pn9_seed pn9_next pn9_reset
 
 
     scrambledInput = xor <$> pn9_value <*> data_i
