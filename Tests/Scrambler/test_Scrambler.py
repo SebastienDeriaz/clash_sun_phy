@@ -14,24 +14,25 @@ def test_Scrambler():
 
     tb.setInputs([
         cg["bypass"],
+        cg["ready_i"],
         cg["valid_i"],
         cg["data_i"],
         cg["last_i"],
-        cg["ready_i"]
+        cg["seed"]
     ])
 
     tb.setExpectedOutputs([
+        cg["ready_o"],
         cg["valid_o"],
         cg["data_o"],
-        cg["last_o"],
-        cg["ready_o"]
+        cg["last_o"]
     ])
 
     tb.setActualOutputsNames([
+        "ready_o (actual)",
         "valid_o (actual)",
         "data_o (actual)",
-        "last_o (actual)",
-        "ready_o (actual)"
+        "last_o (actual)"
     ])
     tb.run()
 

@@ -24,6 +24,8 @@ def test_Interleaver():
     cg = Chronogram(join(dirname(__file__), 'test_Interleaver.json'))
     
     mod = Mr_fsk_modulator(
+        symbolRate=1e3,
+        FSKModulationIndex=1,
         phyMRFSKSFD=0,
         modulation='2FSK',
         phyFSKFECEnabled=True,

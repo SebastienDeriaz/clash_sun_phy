@@ -32,6 +32,8 @@ def test_PHR():
         for _phrDataWhitening in range(2):
             for _phrFrameLength in [0, 100, 2047]: # 2047 is the max
                 mod = Mr_fsk_modulator(
+                    symbolRate=1e3,
+                    FSKModulationIndex=1,
                     phyMRFSKSFD=0,
                     modulation='2FSK',
                     phyFSKFECEnabled=False,
@@ -56,8 +58,6 @@ def test_PHR():
                     PHR_th_list[len(PHR_th_list) // 2:] + 2 * [0]
 
     valid_o += [1] * (len(data_o) - len(valid_o))
-                
-
 
     tb.setInputs([
         phrModeSwitch,

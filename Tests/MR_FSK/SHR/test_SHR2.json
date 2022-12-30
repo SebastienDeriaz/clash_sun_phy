@@ -1,0 +1,17 @@
+{"signal": [
+   {"wave": "P.....................", "name": "clk"},
+  {},
+   {"wave": "0.1.............0..1...................0.10.1..............0.1....", "name": "ready_i"},
+   {"wave": "1.................................................................", "name": "modulation"},
+   {"wave": "0.................................................................", "name": "phyMRFSKSFD"},
+   {"wave": "1.................................................................", "name": "phyFSKFECEnabled"},
+   {"wave": "3.................................................................", "name": "phyFSKPreambleLength", "data": [4]},
+   {"wave": "0...1.............................................................", "name": "valid_i"},
+  {},
+   {"wave": "0....1............................................................", "name": "valid_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "valid_o (actual)"},
+   {"wave": "3.....33333333333...33333333333333333333..3..333333333333333..0...", "name": "data_o", "data": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0]},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "data_o (actual)"},
+   {"wave": "0..........................................................1..0...", "name": "last_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "last_o (actual)"}
+]}

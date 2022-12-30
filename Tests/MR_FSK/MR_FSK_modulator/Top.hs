@@ -20,7 +20,7 @@ topEntity
   -> Signal dom Bit -- phyMRFSKSFD
   -> Signal dom Bit -- ready
   -> Signal dom Bit -- valid_i
-  -> Signal dom (Bit, Bit, Bit, Bit, Bit, Bit, Bit, Bit) -- ready_o, valid_o, data_o, last_o, shr_ready_i, splitter2_a_ready_i, scrambler_ready_i, test, test2
+  -> Signal dom (Bit, Bit, Bit, Bit, Bit, Bit, Bit, Bit)  -- ready_o, valid_o, data_o, last_o, shr_ready_i, splitter2_a_ready_i, scrambler_ready_i, test, test2
 topEntity
   macFCSType
   phyFSKScramblePSDU
@@ -43,7 +43,6 @@ topEntity
   where
     -- MR-FSK modulator
     (ready_o, valid_o, data_o, last_o, psdu_ready_i, test0, test1, test2, test3) = unbundle $ mrFskModulator macFCSType phyFSKScramblePSDU phyFSKFECScheme phyFSKFECEnabled phyFSKFECInterleavingRSC modulation phyFSKPreambleLength phyMRFSKSFD phrFrameLength ready_i valid_i psdu_valid_o psdu_data_o psdu_last_o
-
 
     -- PSDU
     (psdu_valid_o, psdu_data_o, psdu_last_o, phrFrameLength) = unbundle $ psdu psdu_ready_i valid_i

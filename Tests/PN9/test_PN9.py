@@ -13,6 +13,7 @@ def test_PN9():
     cg = Chronogram(join(dirname(__file__), 'test_PN9.json'))
 
     tb.setInputs([
+        cg["seed"],
         cg["next_i"],
         cg["reset_i"]
     ])

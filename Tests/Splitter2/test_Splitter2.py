@@ -25,7 +25,7 @@ def test_Splitter2():
         cg["last_i"],
         cg["a_ready_i"],
         cg["b_ready_i"],
-        cg["sel"]
+        cg["a_length"]
     ])
     tb.setExpectedOutputs([
         cg["ready_o"],

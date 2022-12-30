@@ -17,6 +17,8 @@ def test_RSC():
     cg = Chronogram()
     
     mod = Mr_fsk_modulator(
+        symbolRate=1e3,
+        FSKModulationIndex=1,
         phyMRFSKSFD=0,
         modulation='2FSK',
         phyFSKFECEnabled=True,
@@ -68,6 +70,8 @@ def test_NRNSC():
     cg = Chronogram()
     
     mod = Mr_fsk_modulator(
+        symbolRate=1e3,
+        FSKModulationIndex=1,
         phyMRFSKSFD=0,
         modulation='2FSK',
         phyFSKFECEnabled=True,
@@ -121,6 +125,8 @@ def test_FEC():
 
     for phyFSKFECScheme in [1]:
         mod = Mr_fsk_modulator(
+            symbolRate=1e3,
+            FSKModulationIndex=1,
             phyMRFSKSFD=0,
             modulation='2FSK',
             phyFSKFECEnabled=True,

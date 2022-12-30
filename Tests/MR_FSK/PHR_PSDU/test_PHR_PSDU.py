@@ -23,6 +23,8 @@ def test_PHR_PSDU():
     PSDU = [1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1]
 
     mod = Mr_fsk_modulator(
+        symbolRate=1e3,
+        FSKModulationIndex=1,
         phyMRFSKSFD=0,
         modulation='2FSK',
         phyFSKFECEnabled=True,

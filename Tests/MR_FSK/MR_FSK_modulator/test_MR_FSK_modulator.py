@@ -23,15 +23,20 @@ def test_MR_FSK_Modulator():
     input_bitstream = [1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1]
 
     mod = Mr_fsk_modulator(
+        symbolRate=1e3,
+        FSKModulationIndex=1,
         phyMRFSKSFD=0,
         modulation='2FSK',
         phyFSKFECEnabled=True,
         phyFSKFECScheme=1,
         macFCSType=0,
         phyFSKScramblePSDU=True,
-        phyFSKFECInterleavingRSC=True)
+        phyFSKFECInterleavingRSC=True,
+        phyFSKPreambleLength=4
+    )
 
-    output_bitstream, _ = mod.message_to_IQ(input_bitstream, binary=True)
+    mod.message_to_IQ(input_bitstream, binary=True)
+    output_bitstream = mod._binarySignal
     # [0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 1 0 1 1 1 1 0 1 0 0 1 1 1 0 1 0 0 0 0 0 0 0 0 0 1 0 1 0 0 0 0 1 1 0 1 0 0 0 0 0 0 0 1 1 0 0 1 1 1 1 0 1 1 0 1 1 0 0 1 1 0 0 0 0 0 1 0 1 0 1 1 0 1 0 1 0 1 1 1 1 1 1 0 0 0 0 0 0 1 1 0 1 1 1 0 0 1 0 0 1 1 1 1 1 0 1 1 0 0 0 0 1 0 1 1 0 0 0 0 1 1 1 0 0 0 0 1 0 1 1 0 0 0 0 1 1 0 1 0 0 0 0]
     #
 
@@ -39,15 +44,6 @@ def test_MR_FSK_Modulator():
     # PHR + PSDU (with scrambler)
     #                         PHR                                               PSDU
     # 1 0 0 0 0 0 0 0 0 0 1 0 1 0 0 0 0 1 1 0 1 0 0 0 0 0 0 0 1 1 0 0 | 1 1 0 0 0 0 1 1 1 0 1 1 1 1 0 0 1 1 1 1 0 1 0 0 1 0 1 0 0 0 0 0 1 0 0 0 1 1 1 1 0 1 0 1 0 1 0 0 0 0 0 0 1 1 0 0 0 1 1 0 0 0 1 0 0 1 0 1 1 0 0 0 0 1 1 1 0 0 1 1 1 0 1 1 0 0 0 0 1 1 0 1 0 0 0 1
-
-    print(f"{input_bitstream} -> {output_bitstream}")
-
-    print(f"PHR : {mod._PHR(len(input_bitstream) // 8)}")
-    print(f"After Concat2 : {mod._PHR_PSDU}")
-    print(f"After FEC : {mod._PHR_PSDU_encoded}")
-    print(f"After interleaver : {mod._PHR_PSDU_interleaved}")
-
-    print(f"Output bitstream : {output_bitstream}")
 
     tb.setInputs([
         cg["macFCSType"],
