@@ -29,3 +29,19 @@ nfft 2 = 64
 nfft 3 = 32
 nfft 4 = 16
 nfft _ = 7
+
+type IQ = (SFixed 2 14, SFixed 2 14)
+type Subcarrier = (SFixed 2 14, SFixed 2 14)
+
+
+data Modulation = BPSK
+                | QPSK
+                | QAM16
+  deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
+  deriving anyclass NFDataX
+
+-- Number of coded bits per symbol (as a function of modulation)
+nbpsc_mod :: Modulation -> Unsigned 2
+nbpsc_mod BPSK  = 1 
+nbpsc_mod QPSK  = 2
+nbpsc_mod QAM16 = 4
