@@ -11,6 +11,14 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
+    clash-compiler = {
+      url = "github:clash-lang/clash-compiler";
+      flake = false;
+    };
+    clash-wavedrom = {
+      url = "github:expipiplus1/clash-wavedrom";
+      flake = false;
+    };
   };
 
   outputs = inputs: inputs.flake-utils.lib.eachDefaultSystem (system:
@@ -18,12 +26,12 @@
       # Temporary fix until fix-quartus pull request is accepted
       quartus-overlay = self: super: with builtins; {
         quartus-prime-lite = super.quartus-prime-lite.override {
-         buildFHSUserEnv = attrs: super.buildFHSUserEnv (attrs // {
-           # it's a bug in the quartus package
-           multiPkgs = pkgs: (attrs.multiPkgs pkgs) ++ [
-             pkgs.libxcrypt
-           ];
-         });
+          buildFHSUserEnv = attrs: super.buildFHSUserEnv (attrs // {
+            # it's a bug in the quartus package
+            multiPkgs = pkgs: (attrs.multiPkgs pkgs) ++ [
+              pkgs.libxcrypt
+            ];
+          });
         };
       };
       pkgs = import inputs.nixpkgs {
@@ -97,7 +105,7 @@
           mkdir -p $out
           # Go the to the output directory and build everything there
           cd $out
-          
+
           # Copy all of the files, without the nix hash at the beginning
           # and without mode and ownership preservation (to allow deletion later)
           for s in $srcs; do
@@ -130,20 +138,42 @@
         '';
         runtimeInputs = with pkgs; [ quartus-prime-lite ];
       };
+
+      haskellPackages = pkgs.haskellPackages.override {
+        overrides = self: super: with pkgs.haskell.lib; {
+          clash-wavedrom = self.callCabal2nix "clash-wavedrom" inputs.clash-wavedrom { };
+          concurrent-supply = doJailbreak (markUnbroken super.concurrent-supply);
+        } // builtins.foldl'
+          (acc: name:
+            acc // {
+              "${name}" = dontCheck (self.callCabal2nix name "${inputs.clash-compiler}/${name}" { });
+            })
+          { }
+          [
+            "clash-ffi"
+            "clash-ghc"
+            "clash-lib"
+            "clash-lib-hedgehog"
+            "clash-prelude"
+            "clash-prelude-hedgehog"
+            "clash-cores"
+          ];
+      };
     in
     {
-      inherit pkgs;
-
       packages = {
         default = build;
         inherit vhdl build flash;
       };
 
       devShells.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [
-          quartus-prime-lite
-          (haskellPackages.ghcWithPackages (ps: with ps; [
+        nativeBuildInputs = with haskellPackages; [
+          pkgs.quartus-prime-lite
+          fourmolu
+          (ghcWithPackages (ps: with ps; [
             clash-ghc
+            clash-wavedrom
+            singletons
             ghc-typelits-extra
             ghc-typelits-knownnat
             ghc-typelits-natnormalise
