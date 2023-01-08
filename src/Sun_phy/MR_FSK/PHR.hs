@@ -41,6 +41,10 @@ data State = Idle
 
 nextState :: State -> Bit -> Bit -> State
 -- state, slaveWrite, last
+--        ┌state
+--        │       ┌slaveWrite 
+--        │       │ ┌last
+-- Idle   │       │ │
 nextState Idle    0 _ = Idle
 nextState Idle    1 _ = Running
 nextState Running 1 1 = Finish
@@ -50,6 +54,10 @@ nextState Finish  0 _ = Idle
 
 nextBitIndex :: State -> Bit -> Unsigned 4 -> Unsigned 4
 -- state, slaveWrite, bitIndex
+--           ┌state
+--           │       ┌valid_i 
+--           │       │ ┌ready_o
+-- Idle      │       │ │
 nextBitIndex Running 0 x = x
 nextBitIndex _       1 x = x + 1
 nextBitIndex _       _ x = 0

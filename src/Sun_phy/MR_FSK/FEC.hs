@@ -12,7 +12,9 @@ import Sun_phy.MR_FSK.FEC_B (fecEncoder, FecEncoderState)
 import Sun_phy.Bypass
 
 tailVec :: (BitVector 3) -> Bit -> BitVector 3
---       m     phyFSKFECScheme
+--      ┌m
+--      │     ┌phyFSKFECScheme
+-- Idle │     │ 
 tailVec _     0 = 0b000
 tailVec 0b000 _ = 0b000
 tailVec 0b001 _ = 0b001
@@ -35,6 +37,14 @@ data State = Idle
 
 -- state bypass ready_o encoderValid_i last_i tailCounterEnd padCounterEnd
 f_nextState :: State -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> State
+--          ┌state
+--          │    ┌bypass
+--          │    │ ┌ready_o
+--          │    │ │ ┌encoderValid_i
+--          │    │ │ │ ┌last_i
+--          │    │ │ │ │ ┌tailCounterEnd
+--          │    │ │ │ │ │ ┌padCounterEnd
+-- Idle     │    │ │ │ │ │ │ 
 f_nextState _    1 _ _ _ _ _ = Idle
 -- Idle
 f_nextState Idle _ 1 1 _ _ _ = Data
@@ -59,6 +69,11 @@ f_nextState Last _ _ _ _ _ _ = Idle
 
 nextTailCounter :: State -> Bit -> Bit -> Unsigned 2 -> Unsigned 2
 -- State, tailCounterEnd, encoderReady_o, counter
+--              ┌state
+--              │    ┌tailCounterEnd
+--              │    │ ┌encoderReady_o
+--              │    │ │ ┌counter
+-- Idle         │    │ │ │ 
 nextTailCounter Tail 0 1 x = x + 1
 nextTailCounter Tail _ _ x = x
 nextTailCounter _    _ _ _ = 0
@@ -81,24 +96,36 @@ pad_bits = 0b1101000011010
 
 nextPadCounter :: State -> Bit -> Bit -> Unsigned 4 -> Unsigned 4
 -- State, padCounterEnd, encoderReady_o, state
+--             ┌state
+--             │   ┌padCounterEnd
+--             │   │ ┌encoderReady_o
+--             │   │ │ ┌counter
+-- Idle        │   │ │ │ 
 nextPadCounter Pad 0 1 x = x + 1
 nextPadCounter Pad _ _ x = x
 nextPadCounter _   _ _ _ = 0
 
 padCounterMax :: Bool -> Unsigned 4
+--            ┌evenNBytes
+--            │ 
 padCounterMax True  = 12 -- even -> 13 bits
 padCounterMax False = 4  -- odd  -> 5 bits
 
 encoderValid_i :: State -> Bit -> Bit
-encoderValid_i Idle valid_i = valid_i
-encoderValid_i Data valid_i = valid_i
-encoderValid_i _    _       = 1
-
-encoderReady_i :: State -> Bit -> Bit
-encoderReady_i _ ready = ready
+--             ┌state
+--             │    ┌valid_i
+--             │    │ 
+encoderValid_i Idle x = x
+encoderValid_i Data x = x
+encoderValid_i _    _ = 1
 
 f_nextBitCounter :: State -> Bit -> Bit -> Unsigned 4 -> Unsigned 4
 -- State, ready_o, valid_i, counter
+--               ┌state
+--               │    ┌ready_o
+--               │    │ ┌valid_i
+--               │    │ │ ┌counter
+--               │    │ │ │ 
 f_nextBitCounter Data 1 1 x = x + 1
 f_nextBitCounter Idle 1 1 _ = 1
 f_nextBitCounter Data _ _ x = x
@@ -138,11 +165,10 @@ fec bp phyFSKFECScheme valid_i data_i last_i ready_i = bundle(ready_o, valid_o, 
 
     encoderValid_i' = encoderValid_i <$> state <*> valid_i
     encoderInput' = encoderInput <$> state <*> data_i <*> tail <*> pad
-    encoderReady_i' = encoderReady_i <$> state <*> ready_i
 
     mReg = register (0 :: BitVector 3) nextMReg
     nextMReg = mux (state .==. (pure Data) .&&. last_i .==. (pure 1)) m mReg
-    (m, encoderReady_o, encoderData_o, encoderValid_o, encoderState) = unbundle $ fecEncoder phyFSKFECScheme encoderReady_i' encoderValid_i' encoderInput'
+    (m, encoderReady_o, encoderData_o, encoderValid_o, encoderState) = unbundle $ fecEncoder phyFSKFECScheme ready_i encoderValid_i' encoderInput'
 
     -- Bypass
     (bypassValid_o, bypassData_o, bypassLast_o, bypassReady_o) = unbundle $ bypass valid_i data_i last_i ready_i

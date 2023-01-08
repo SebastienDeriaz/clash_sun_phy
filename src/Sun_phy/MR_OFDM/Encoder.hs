@@ -32,8 +32,12 @@ data State = Idle
   deriving anyclass NFDataX
 
 nextState :: State -> Bit -> Bit -> Bit -> Bit -> State
--- State, rate, masterWrite, slaveWrite, is_last
--- Idle
+--        ┌state
+--        │    ┌rate 
+--        │    │ ┌masterWrite
+--        │    │ │ ┌slaveWrite
+--        │    │ │ │ ┌is_last      
+-- Idle   │    │ │ │ │
 nextState Idle _ 0 _ _ = Idle
 nextState Idle _ 1 _ _ = A0
 -- A0
@@ -60,6 +64,10 @@ nextState B2   _ _ _ _ = B2
 
 ready :: State -> Bit -> Bit -> Bit
 -- counter, rate, buffered
+--    ┌state
+--    │    ┌rate 
+--    │    │ ┌buffered
+--    │    │ │
 ready Idle _ _ = 1
 ready B0   _ _ = 1
 ready A1   1 _ = 1
@@ -68,34 +76,49 @@ ready B2   _ _ = 1
 ready _    _ _ = 0
 
 valid :: State -> Bit
+--    ┌state
+--    │
 valid Idle = 0
 valid _    = 1
 
 data_out :: State -> Bit -> Bit -> Bit
-data_out Idle a b = a
-data_out A0   a b = a
-data_out A1   a b = a
-data_out A2   a b = a
-data_out B0   a b = b
-data_out B1   a b = b
-data_out B2   a b = b
+--       ┌state
+--       │    ┌a 
+--       │    │ ┌b
+--       │    │ │
+data_out Idle a _ = a
+data_out A0   a _ = a
+data_out A1   a _ = a
+data_out A2   a _ = a
+data_out B0   _ b = b
+data_out B1   _ b = b
+data_out B2   _ b = b
 
 
 nextIsLast :: State -> Bit -> Bit -> Bit 
+--         ┌state
+--         │    ┌last_i 
+--         │    │ ┌is_last
+-- Idle    │    │ │
 nextIsLast Idle _ _ = 0
 nextIsLast _    1 _ = 1
 nextIsLast _    _ x = x
 
 last :: State -> Bit -> Bit
--- State, is last
+--   ┌state
+--   │  ┌is_ast 
+--   │  │ 
 last B2 1 = 1
 last _  _ = 0
 
 
 nextBuffered :: State -> Bit -> Bit -> Bit -> Bit
--- state, slaveWrite, masterWrite, buffered
--- No change
-nextBuffered Idle _ _ _ = 0
+--           ┌state
+--           │    ┌slaveWrite 
+--           │    │ ┌masterWrite
+--           │    │ │ ┌buffered
+-- Idle      │    │ │ │
+nextBuffered Idle _ _ _ = 0 -- no change
 nextBuffered _    0 1 0 = 1
 nextBuffered _    1 0 1 = 0
 nextBuffered _    _ _ x = x
@@ -142,7 +165,11 @@ encoder rate valid_i data_i last_i ready_i = bundle(ready_o, data_o, valid_o, la
 
 
 newM :: BitVector 6 -> Bit -> Bit -> Bit -> BitVector 6
--- old, valid_i, input, out, rst
+--   ┌m
+--   │ ┌valid_i 
+--   │ │ ┌input
+--   │ │ │ ┌rst
+--   │ │ │ │
 newM _ _ _ 1 = 0
 newM x 0 _ 0 = x
 newM x 1 n 0 = (shiftR x 1) .|. (pack n ++# 0b00000)

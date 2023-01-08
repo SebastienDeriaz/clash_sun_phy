@@ -27,11 +27,11 @@ nfft :: Unsigned 3 -> Unsigned 8
 nfft 1 = 128
 nfft 2 = 64
 nfft 3 = 32
-nfft 4 = 16
-nfft _ = 7
+nfft _ = 16
 
-type IQ = (SFixed 2 14, SFixed 2 14)
-type Subcarrier = (SFixed 2 14, SFixed 2 14)
+type MFixed = SFixed 16 16
+type IQ = (MFixed, MFixed)
+type Subcarrier = (MFixed, MFixed)
 
 
 data Modulation = BPSK
@@ -45,3 +45,9 @@ nbpsc_mod :: Modulation -> Unsigned 2
 nbpsc_mod BPSK  = 1 
 nbpsc_mod QPSK  = 2
 nbpsc_mod QAM16 = 4
+
+data CP = CP_NONE
+        | CP_QUARTER
+        | CP_HALF
+  deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
+  deriving anyclass NFDataX

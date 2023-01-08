@@ -16,29 +16,40 @@ data FecEncoderState = Idle
   deriving anyclass NFDataX
 
 nextState :: FecEncoderState -> Bit -> Bit -> Bit -> FecEncoderState 
---        State ready_i ready_o valid_i
--- Idl
-nextState Idle  1 _ 1 = Out1
-nextState Idle  0 1 1 = Out1 -- If we aren't ready but the ready_o flag was on, accept the data anyway
-nextState Idle  _ _ _ = Idle
+--        ┌state
+--        │    ┌ready_i
+--        │    │ ┌ready_o
+--        │    │ │ ┌valid_i
+-- Idle   │    │ │ │ 
+nextState Idle 1 _ 1 = Out1
+nextState Idle 0 1 1 = Out1 -- If we aren't ready but the ready_o flag was on, accept the data anyway
+nextState Idle _ _ _ = Idle
 -- Out1
-nextState Out1  1 _ _ = Out0
-nextState Out1  0 _ _ = Out1
+nextState Out1 1 _ _ = Out0
+nextState Out1 0 _ _ = Out1
 -- Out0
-nextState Out0  1 _ _ = Idle
-nextState Out0  0 _ _ = Out0
+nextState Out0 1 _ _ = Idle
+nextState Out0 0 _ _ = Out0
 
 data_out :: FecEncoderState -> Bit -> Bit -> Bit
+--       ┌state
+--       │    ┌ui0
+--       │    │    ┌ui1
+-- Idle  │    │    │ 
 data_out Out0  ui0 _   = ui0
 data_out Out1  _   ui1 = ui1
 data_out Idle  _   _   = 0
 
 ready_out :: FecEncoderState -> Bit
+--        ┌state
+--        │ 
 ready_out Idle  = 1
 ready_out _     = 0
 
 
 valid_out :: FecEncoderState -> Bit
+--        ┌state
+--        │ 
 valid_out Idle  = 0
 valid_out Out0  = 1
 valid_out Out1  = 1

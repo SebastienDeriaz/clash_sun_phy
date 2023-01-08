@@ -9,6 +9,8 @@ from os.path import join, dirname
 import numpy as np
 import pytest
 
+import matplotlib.pyplot as plt
+
 from sun_phy import Ofdm_modulator
 # from sun_phy.mr_ofdm.mr_ofdm_modulator import FREQUENCY_SPREADING, N_BPSC, FFT_SIZE
 # from sun_phy.tools.errors import UnsupportedError
@@ -105,12 +107,8 @@ def test_OFDM():
         "valid_o (actual)",
         "last_o (actual)",
         "state",
-        "test",
-        "test 2",
-        "test 3",
-        "test 4",
-        "test 5",
-        "test 6"
+        "subcarrierCounter",
+        "subcarrierIndex'"
     ])
 
     cg.setTemplates({
@@ -122,9 +120,29 @@ def test_OFDM():
     cg.setSignals(tb.getAllSignals())
     cg.saveSVG(join(dirname(__file__), 'test_OFDM.svg'))
 
-    for s in tb:
-        if s.isChecked():
-            s.print(True)
-            assert s.isValid(), s.message()
-        else:
-            s.print(True)
+    # for s in tb:
+    #     if s.isChecked():
+    #         s.print(True)
+    #         assert s.isValid(), s.message()
+    #     else:
+    #         s.print(True)
+
+    # Check IQ signal
+    outputTh = I + 1j*Q
+    outputSignal = np.array([complex(*[float(x) for x in str(s)[1:-1].split(',')]) for s in tb._actualOutputs["data_o (actual)"].samples][25:25+outputTh.size])
+    print(outputSignal)
+
+    # plt.figure()
+    # plt.subplot(211)
+    # plt.plot(outputTh.real, linewidth=3)
+    # plt.plot(outputSignal.real)
+    # plt.subplot(212)
+    # plt.plot(outputTh.imag, linewidth=3)
+    # plt.plot(outputSignal.imag)
+    # plt.show()
+
+    assert np.var(outputSignal - outputTh) < 0.1
+
+
+if __name__ == '__main__':
+    test_OFDM()

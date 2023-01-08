@@ -15,8 +15,10 @@ data State = Idle
 
 
 nextState :: State -> Bit -> Bit -> State
--- state, valid_i, counterEnd
--- Idle
+--        ┌state
+--        │     ┌valid_i 
+--        │     │ ┌counterEnd
+-- Idle   │     │ │
 nextState Idle  0 _ = Idle
 nextState Idle  1 _ = Write
 -- Write
@@ -28,7 +30,13 @@ nextState Read  _ 1 = Idle
 
 
 nextCounter :: State -> Bit -> Bit -> Bit -> Bit -> Unsigned 9 -> Unsigned 9
--- state, valid_i, ready_o, ready_i, counterEnd
+--          ┌state
+--          │     ┌valid_i 
+--          │     │ ┌ready_o
+--          │     │ │ ┌ready_i
+--          │     │ │ │ ┌counterEnd      
+--          │     │ │ │ │ ┌counter              
+-- Idle     │     │ │ │ │ │
 nextCounter Idle  1 1 _ _ _ = 1
 nextCounter Idle  _ _ _ _ _ = 0
 nextCounter Write _ _ 1 _ _ = 0
@@ -39,11 +47,18 @@ nextCounter Read  _ _ _ 1 x = x + 1
 nextCounter Read  _ _ _ 0 x = x
 
 nextBuffer :: State -> Bit -> Bit -> Unsigned 9 -> Bit -> Bit -> BitVector 384 -> BitVector 384
--- state, masterWrite, slaveWrite, counter, counterEnd, data_i, buffer
-nextBuffer Idle  1 _ i  _ 1 buffer = setBit buffer (fromEnum i)
-nextBuffer Write 1 _ i  _ 1 buffer = setBit buffer (fromEnum i)
-nextBuffer Read  _ 1 _  1 _ buffer = 0
-nextBuffer _     _ _ _  _ _ buffer = buffer
+--         ┌state
+--         │     ┌masterWrite 
+--         │     │ ┌slaveWrite
+--         │     │ │ ┌counter
+--         │     │ │ │ ┌counterEnd      
+--         │     │ │ │ │ ┌data_i              
+--         │     │ │ │ │ │ ┌buffer              
+-- Idle    │     │ │ │ │ │ │
+nextBuffer Idle  1 _ i _ 1 buffer = setBit buffer (fromEnum i)
+nextBuffer Write 1 _ i _ 1 buffer = setBit buffer (fromEnum i)
+nextBuffer Read  _ 1 _ 1 _ buffer = 0
+nextBuffer _     _ _ _ _ _ buffer = buffer
 
 ready :: State -> Bit
 ready Idle = 1
@@ -51,6 +66,9 @@ ready Write = 1
 ready Read = 0
 
 nextLastStore :: State -> Bit -> Bit -> Bit
+--            ┌state
+--            │     ┌last_i 
+--            │     │ ┌last_store
 nextLastStore Write 1 _ = 1
 nextLastStore Idle  _ _ = 0
 nextLastStore _     _ x = x

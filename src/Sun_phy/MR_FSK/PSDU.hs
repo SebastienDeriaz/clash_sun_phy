@@ -13,7 +13,10 @@ data State = Idle
 
 
 nextState :: State -> Bit -> Bit -> State
--- state, ready, last
+--        ┌state
+--        │       ┌ready 
+--        │       │ ┌last
+-- Idle   │       │ │
 nextState Idle    0 _ = Idle
 nextState Idle    1 _ = Running
 nextState Running 1 1 = Finish
@@ -23,6 +26,10 @@ nextState Finish  0 _ = Idle
 
 nextBitIndex :: State -> Bit -> Unsigned 5 -> Unsigned 5
 -- state, ready, bitIndex
+--           ┌state
+--           │       ┌ready 
+--           │       │ ┌bitIndex
+-- Idle      │       │ │
 nextBitIndex Running 0 x = x
 nextBitIndex Running 1 x = x + 1
 nextBitIndex Idle    1 x = x + 1
