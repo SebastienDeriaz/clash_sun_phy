@@ -136,7 +136,7 @@ ofdm
   -> Signal dom Bit -- data_i
   -> Signal dom Bit -- data_last_i
   -> Signal dom Bit -- ready_i
-  -> Signal dom (Bit, Bit, IQ, Bit, Bit, State, Unsigned 7, Unsigned 7)
+  -> Signal dom (Bit, Bit, IQ, Bit, Bit, State, Bit, Bit)
 ofdm
   -- Inputs
   n_fft
@@ -162,8 +162,8 @@ ofdm
     valid_o,
     last_o,
     state,
-    subcarrierCounter,
-    subcarrierIndex'
+    subcarrierReadEnd,
+    isLast
     )
   where
     -- ╔══════════════════════════════╗
@@ -179,10 +179,16 @@ ofdm
 
     data_ready_o  = dataReady <$> state
     -- data_o
-    dataOut :: Enum n => Vec 128 IQ -> n -> IQ
-    dataOut v i = v !! i
+    dataOut :: Enum n => State -> Vec 128 IQ -> n -> IQ
+    --      ┌state
+    --      │    ┌iq vector
+    --      │    │ ┌index
+    --      │    │ │
+    dataOut OuCP v i = v !! i
+    dataOut Outp v i = v !! i
+    dataOut _    _ _ = (0,0)
 
-    data_o        = dataOut <$> fftOutput <*> subcarrierIndex'
+    data_o        = dataOut <$> state <*> fftOutput <*> subcarrierIndex'
     -- valid_o
 
     valid :: State -> Bit
@@ -192,7 +198,10 @@ ofdm
 
     valid_o       = valid <$> state
     -- last_o
-    last_o        = pure 0
+    last_o        = boolToBit <$> (
+      subcarrierReadEnd .==. 1 .&&.
+      isLast .==. 1 .&&.
+      state .==. pure Outp)
 
     cp_enabled    = boolToBit <$> (cp ./=. pure CP_NONE)
 
@@ -214,7 +223,7 @@ ofdm
     -- ╚═══════════════╝
 
     -- State
-    nextState :: State -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Unsigned 2 -> Unsigned 2 -> Bit -> State
+    nextState :: State -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Unsigned 2 -> Unsigned 2 -> Bit -> Bit -> State
     --        ┌state
     --        │    ┌pilot_enable
     --        │    │ ┌pilot_last_i
@@ -227,48 +236,63 @@ ofdm
     --        │    │ │ │ │ │ │ │ │ ┌spreadCounter
     --        │    │ │ │ │ │ │ │ │ │ ┌bufferCounter
     --        │    │ │ │ │ │ │ │ │ │ │ ┌cp_enabled
-    -- Idle   │    │ │ │ │ │ │ │ │ │ │ │
-    nextState Idle 0 _ _ _ _ _ _ _ _ 0 _ = WDat
-    nextState Idle 0 _ _ _ _ _ _ _ _ _ _ = BufD
-    nextState Idle 1 _ _ _ _ _ _ _ _ _ _ = WPlt
+    --        │    │ │ │ │ │ │ │ │ │ │ │ ┌slaveWrite
+    -- Idle   │    │ │ │ │ │ │ │ │ │ │ │ │
+    nextState Idle 0 _ _ _ _ _ _ _ _ 0 _ _ = WDat
+    nextState Idle 0 _ _ _ _ _ _ _ _ _ _ _ = BufD
+    nextState Idle 1 _ _ _ _ _ _ _ _ _ _ _ = WPlt
     -- Write pilot
-    nextState WPlt _ 1 1 _ _ _ _ 1 _ 0 _ = Skip
-    nextState WPlt _ 1 1 _ _ _ _ 0 _ 0 _ = WDat
-    nextState WPlt _ 1 1 _ _ _ _ 1 _ _ _ = Skip
-    nextState WPlt _ 1 1 _ _ _ _ 0 _ _ _ = BufD
-    nextState WPlt _ _ _ _ _ _ _ _ _ _ _ = WPlt
+    nextState WPlt _ 1 1 _ _ _ _ 1 _ 0 _ _ = Skip
+    nextState WPlt _ 1 1 _ _ _ _ 0 _ 0 _ _ = WDat
+    nextState WPlt _ 1 1 _ _ _ _ 1 _ _ _ _ = Skip
+    nextState WPlt _ 1 1 _ _ _ _ 0 _ _ _ _ = BufD
+    nextState WPlt _ _ _ _ _ _ _ _ _ _ _ _ = WPlt
     -- Buffer data
-    nextState BufD _ _ _ _ 1 _ _ 1 _ 0 _ = Skip
-    nextState BufD _ _ _ _ 1 _ _ 0 _ 0 _ = WDat
-    nextState BufD _ _ _ _ _ _ _ _ _ _ _ = BufD
+    nextState BufD _ _ _ _ 1 _ _ 1 _ 0 _ _ = Skip
+    nextState BufD _ _ _ _ 1 _ _ 0 _ 0 _ _ = WDat
+    nextState BufD _ _ _ _ _ _ _ _ _ _ _ _ = BufD
     -- Write data
-    nextState WDat _ _ _ _ 1 _ _ _ 0 _ 0 = Outp
-    nextState WDat _ _ _ _ 1 _ _ _ 0 _ 1 = OuCP
-    nextState WDat _ _ _ _ 1 _ _ _ _ _ _ = WrSF
-    nextState WDat _ _ _ _ 0 _ _ 0 _ _ _ = WDat
-    nextState WDat _ _ _ _ _ _ _ 1 0 _ _ = Skip
-    nextState WDat _ _ _ _ _ _ _ 0 0 _ _ = WDat
-    nextState WDat _ _ _ _ _ _ _ _ _ _ _ = WrSF
+    nextState WDat _ _ _ _ 1 _ _ _ 0 _ 0 _ = Outp
+    nextState WDat _ _ _ _ 1 _ _ _ 0 _ 1 _ = OuCP
+    nextState WDat _ _ _ _ 1 _ _ _ _ _ _ _ = WrSF
+    nextState WDat _ _ _ _ 0 _ _ 0 _ _ _ _ = WDat
+    nextState WDat _ _ _ _ _ _ _ 1 0 _ _ _ = Skip
+    nextState WDat _ _ _ _ _ _ _ 0 0 _ _ _ = WDat
+    nextState WDat _ _ _ _ _ _ _ _ _ _ _ _ = WrSF
     -- Write frequency spreading
-    nextState WrSF _ _ _ _ _ 0 _ 0 0 0 _ = WDat
-    nextState WrSF _ _ _ _ _ 0 _ 1 0 0 _ = Skip
-    nextState WrSF _ _ _ _ _ 0 _ 0 0 _ _ = BufD
-    nextState WrSF _ _ _ _ _ 0 _ 1 0 _ _ = Skip
-    nextState WrSF _ _ _ _ _ 1 _ _ _ _ 0 = Outp -- the spread counter must be 0, no need to check it
-    nextState WrSF _ _ _ _ _ 1 _ _ _ _ 1 = OuCP -- the spread counter must be 0, no need to check it
-    nextState WrSF _ _ _ _ _ _ _ _ _ _ _ = WrSF
+    nextState WrSF _ _ _ _ _ 0 _ 0 0 0 _ _ = WDat
+    nextState WrSF _ _ _ _ _ 0 _ 1 0 0 _ _ = Skip
+    nextState WrSF _ _ _ _ _ 0 _ 0 0 _ _ _ = BufD
+    nextState WrSF _ _ _ _ _ 0 _ 1 0 _ _ _ = Skip
+    nextState WrSF _ _ _ _ _ 1 _ _ _ _ 0 _ = Outp -- the spread counter must be 0, no need to check it
+    nextState WrSF _ _ _ _ _ 1 _ _ _ _ 1 _ = OuCP -- the spread counter must be 0, no need to check it
+    nextState WrSF _ _ _ _ _ _ _ _ _ _ _ _ = WrSF
     -- Pilot skip
-    nextState Skip _ _ _ _ _ _ _ 1 _ _ _ = Skip
-    nextState Skip _ _ _ _ _ _ _ 0 _ 0 _ = WDat
-    nextState Skip _ _ _ _ _ _ _ 0 _ _ _ = BufD
+    nextState Skip _ _ _ _ _ _ _ 1 _ _ _ _ = Skip
+    nextState Skip _ _ _ _ _ _ _ 0 _ 0 _ _ = WDat
+    nextState Skip _ _ _ _ _ _ _ 0 _ _ _ _ = BufD
     -- Output CP
-    nextState OuCP _ _ _ _ _ _ 1 _ _ _ _ = Outp
-    nextState OuCP _ _ _ _ _ _ 0 _ _ _ _ = OuCP
+    nextState OuCP _ _ _ _ _ _ 1 _ _ _ _ 1 = Outp
+    nextState OuCP _ _ _ _ _ _ _ _ _ _ _ _ = OuCP
     -- Output
-    nextState Outp _ _ _ _ _ _ 1 _ _ _ _ = Idle
-    nextState Outp _ _ _ _ _ _ 0 _ _ _ _ = Outp
+    nextState Outp _ _ _ _ _ _ 1 _ _ _ _ 1 = Idle
+    nextState Outp _ _ _ _ _ _ _ _ _ _ _ _ = Outp
 
-    nextState' = nextState <$> state <*> pilotEnable <*> pilot_last_i <*> pilotWrite <*> data_last_i <*> dataWrite <*> subcarrierWriteEnd <*> subcarrierReadEnd <*> pilotNext <*> spreadCounter <*> bufferCounter <*> cp_enabled
+    nextState' = nextState
+      <$> state
+      <*> pilotEnable
+      <*> pilot_last_i
+      <*> pilotWrite
+      <*> data_last_i
+      <*> dataWrite
+      <*> subcarrierWriteEnd
+      <*> subcarrierReadEnd
+      <*> pilotNext
+      <*> spreadCounter
+      <*> bufferCounter
+      <*> cp_enabled
+      <*> slaveWrite
+
     state = register (Idle :: State) nextState'
 
     -- ╔════════════════╗
@@ -303,6 +327,21 @@ ofdm
     nextdataCounter _    _ _ x = x
     dataCounter = register (0 :: Unsigned 7) (nextdataCounter <$> state <*> subcarrierWrite' <*> spreadCounter <*> dataCounter)
 
+    -- ╔════════════╗
+    -- ║ Last check ║
+    -- ╚════════════╝
+    -- Check if the input is the last piece of data. In that case, the last flag will be raised
+    -- when outputing the data
+    nextIsLast :: State -> Bit -> Bit -> Bit
+    --         ┌state
+    --         │    ┌last_i
+    --         │    │ ┌isLast
+    --         │    │ │ 
+    nextIsLast Idle _ _ = 0
+    nextIsLast WDat l _ = l
+    nextIsLast _    _ x = x
+
+    isLast = register (0 :: Bit) (nextIsLast <$> state <*> data_last_i <*> isLast)
 
     -- ╔═════════════════╗
     -- ║ Data subcarrier ║
@@ -383,9 +422,6 @@ ofdm
         k = d + 1
     -- 4x
     sfPhase 4 0 k x = x
-
-
-    
   
     -- ╔══════════════════════════════╗
     -- ║ Subcarrier writing + counter ║
@@ -432,10 +468,12 @@ ofdm
     -- Reading
     nextSubcarrierCounter Outp _          _ _ _ 1 _ x = x + 1
     nextSubcarrierCounter Outp _          _ _ _ 0 _ x = x
+    -- Reading (CP)
+    nextSubcarrierCounter OuCP _          _ _ _ 1 1 _ = 0 -- Reset for (not CP this time)
     nextSubcarrierCounter OuCP _          _ _ _ 1 _ x = x + 1
     nextSubcarrierCounter OuCP _          _ _ _ 0 _ x = x
     -- Writing
-    nextSubcarrierCounter _    CP_NONE    _ 1 1 _ _ _ = 0 -- Reset for output
+    nextSubcarrierCounter _    CP_NONE    _ 1 1 _ _ _ = 0 -- Reset for output (CP or not)
     nextSubcarrierCounter _    CP_HALF    n 1 1 _ _ _ = resize $ n `div` 2 -- Go at Half width
     nextSubcarrierCounter _    CP_QUARTER n 1 1 _ _ _ = resize $ n `div` 4 * 3 -- Go at 3/4
     nextSubcarrierCounter _    _          _ 1 _ _ _ x = x + 1
