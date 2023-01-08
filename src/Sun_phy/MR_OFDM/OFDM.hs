@@ -122,7 +122,6 @@ pilotsIndicesInitial = repeat (-1) :: Vec 128 (Unsigned 7)
 ofdm
   :: forall dom . HiddenClockResetEnable dom
   => Signal dom (Unsigned 8) -- N_FFT
-  -> Signal dom (Unsigned 16) -- Bandwidth (kHz)
   -> Signal dom Modulation -- Modulation (0-BPSK, 1-QPSK, 2-QAM16)
   -> Signal dom CP -- CP
   -> Signal dom (Unsigned 7) -- active_tones
@@ -140,7 +139,6 @@ ofdm
 ofdm
   -- Inputs
   n_fft
-  bandwidth
   mod
   cp
   dataTones
