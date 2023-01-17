@@ -11,7 +11,7 @@ import numpy as np
 
 from sun_phy.mr_fsk.mr_fsk_modulator import Mr_fsk_modulator
 
-filepath = join(dirname(__file__), '../../Sun_phy/Splitter2.hs')
+filepath = join(dirname(__file__), '../../SunPhy/Splitter2.hs')
 
 
 def test_Splitter2():

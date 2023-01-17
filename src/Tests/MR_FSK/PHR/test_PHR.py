@@ -7,7 +7,7 @@ from os.path import join, dirname
 from sun_phy.mr_fsk.mr_fsk_modulator import Mr_fsk_modulator, PHR_LENGTH
 
 def test_PHR():
-    filepath = join(dirname(__file__), '../../../Sun_phy/MR_FSK/PHR.hs')
+    filepath = join(dirname(__file__), '../../../SunPhy/MR_FSK/PHR.hs')
 
     tb = Testbench(filepath, 'phr')
     # inputs

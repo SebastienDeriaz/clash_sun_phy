@@ -16,7 +16,7 @@ from sun_phy import Mr_ofdm_modulator
 from sun_phy.mr_ofdm.mr_ofdm_modulator import FREQUENCY_SPREADING, N_BPSC, FFT_SIZE
 from sun_phy.tools.errors import UnsupportedError
 
-filepath = join(dirname(__file__), '../../../Sun_phy/MR_OFDM/Encoder.hs')
+filepath = join(dirname(__file__), '../../../SunPhy/MR_OFDM/Encoder.hs')
 
 def test_Encoder():
     tb = Testbench(filepath, 'encoder')

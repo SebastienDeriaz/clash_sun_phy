@@ -5,7 +5,7 @@ from clash_testbench import Testbench, Chronogram
 from os.path import join, dirname
 
 def test_concat2():
-    filepath = join(dirname(__file__), '../../Sun_phy/Concat2.hs')
+    filepath = join(dirname(__file__), '../../SunPhy/Concat2.hs')
 
     tb = Testbench(filepath, 'concat2')
 

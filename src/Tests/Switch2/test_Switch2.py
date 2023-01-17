@@ -11,7 +11,7 @@ import numpy as np
 
 from sun_phy.mr_fsk.mr_fsk_modulator import Mr_fsk_modulator
 
-filepath = join(dirname(__file__), '../../Sun_phy/Switch2.hs')
+filepath = join(dirname(__file__), '../../SunPhy/Switch2.hs')
 
 
 def test_Switch2():

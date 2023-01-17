@@ -7,8 +7,8 @@ import numpy as np
 
 from sun_phy.mr_fsk.mr_fsk_modulator import Mr_fsk_modulator
 
-fec = join(dirname(__file__), '../../../Sun_phy/MR_FSK/FEC.hs')
-fecB = join(dirname(__file__), '../../../Sun_phy/MR_FSK/FEC_B.hs')
+fec = join(dirname(__file__), '../../../SunPhy/MR_FSK/FEC.hs')
+fecB = join(dirname(__file__), '../../../SunPhy/MR_FSK/FEC_B.hs')
 
 
 def test_RSC():

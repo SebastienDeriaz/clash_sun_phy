@@ -15,7 +15,7 @@ import numpy as np
 
 from sun_phy.mr_fsk.mr_fsk_modulator import Mr_fsk_modulator
 
-filepath = join(dirname(__file__), '../../../Sun_phy/MR_FSK/Interleaver.hs')
+filepath = join(dirname(__file__), '../../../SunPhy/MR_FSK/Interleaver.hs')
 
 
 def test_Interleaver():

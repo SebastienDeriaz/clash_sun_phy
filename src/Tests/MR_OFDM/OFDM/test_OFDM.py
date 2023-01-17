@@ -15,7 +15,7 @@ from sun_phy import Ofdm_modulator
 # from sun_phy.mr_ofdm.mr_ofdm_modulator import FREQUENCY_SPREADING, N_BPSC, FFT_SIZE
 # from sun_phy.tools.errors import UnsupportedError
 
-filepath = join(dirname(__file__), '../../../Sun_phy/MR_OFDM/OFDM.hs')
+filepath = join(dirname(__file__), '../../../SunPhy/MR_OFDM/OFDM.hs')
 
 
 def test_subcarrierCounterToIndex():
@@ -75,7 +75,6 @@ def test_OFDM():
 
     tb.setInputs([
         cg["N_FFT"],
-        cg["Bandwidth"],
         cg["Modulation"],
         cg["CP"],
         cg["dataTones"],

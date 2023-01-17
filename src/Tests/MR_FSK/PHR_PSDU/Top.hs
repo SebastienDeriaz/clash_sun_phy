@@ -3,8 +3,8 @@ module Tests.MR_FSK.PHR_PSDU.Top where
 import Clash.Prelude
 
 import Tests.MR_FSK.PHR_PSDU.PSDU
-import Sun_phy.MR_FSK.PHR
-import Sun_phy.Concat2
+import SunPhy.MR_FSK.PHR
+import SunPhy.Concat2
 
 
 -- This is a test module to try the PHR, PSDU and Concat2 blocks

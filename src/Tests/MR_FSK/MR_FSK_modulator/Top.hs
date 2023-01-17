@@ -3,7 +3,7 @@ module Tests.MR_FSK.MR_FSK_modulator.Top where
 import Clash.Prelude
 
 import Tests.MR_FSK.MR_FSK_modulator.PSDU
-import Sun_phy.MR_FSK.MR_FSK_modulator
+import SunPhy.MR_FSK.MR_FSK_modulator
 
 
 -- This is a test module to try the MR_FSK modulator with a test sequence (from PSDU_test)

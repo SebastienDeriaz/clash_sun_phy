@@ -5,7 +5,7 @@ from clash_testbench import Testbench, Chronogram, Signal
 from os.path import join, dirname
 
 def test_PSDU():
-    filepath = join(dirname(__file__), '../../../Sun_phy/MR_FSK/PSDU.hs')
+    filepath = join(dirname(__file__), '../../../SunPhy/MR_FSK/PSDU.hs')
 
     tb = Testbench(filepath, 'psdu')
     cg = Chronogram(join(dirname(__file__), 'test_PSDU.json'))

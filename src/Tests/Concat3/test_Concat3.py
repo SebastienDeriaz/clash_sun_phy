@@ -6,7 +6,7 @@ from clash_testbench.signals import *
 from os.path import join, dirname
 
 def test_concat2():
-    filepath = join(dirname(__file__), '../../Sun_phy/Concat3.hs')
+    filepath = join(dirname(__file__), '../../SunPhy/Concat3.hs')
 
     tb = Testbench(filepath, 'concat3')
 

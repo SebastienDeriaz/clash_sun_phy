@@ -7,7 +7,7 @@ from clash_testbench import Testbench, Chronogram, Signal
 from os.path import join, dirname
 
 def test_PN9():
-    filepath = join(dirname(__file__), '../../Sun_phy/PN9.hs')
+    filepath = join(dirname(__file__), '../../SunPhy/PN9.hs')
 
     tb = Testbench(filepath, 'pn9')
     cg = Chronogram(join(dirname(__file__), 'test_PN9.json'))

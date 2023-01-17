@@ -9,7 +9,7 @@ from sun_phy.mr_fsk.mr_fsk_modulator import Mr_fsk_modulator
 
 
 def test_SHR():
-    filepath = join(dirname(__file__), '../../../Sun_phy/MR_FSK/SHR.hs')
+    filepath = join(dirname(__file__), '../../../SunPhy/MR_FSK/SHR.hs')
 
     tb = Testbench(filepath, 'shr')
     for cg_file in glob(join(dirname(__file__), 'test_SHR*.json')):
