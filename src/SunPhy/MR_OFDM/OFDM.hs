@@ -135,7 +135,7 @@ ofdm
   -> Signal dom Bit -- data_i
   -> Signal dom Bit -- data_last_i
   -> Signal dom Bit -- ready_i
-  -> Signal dom (Bit, Bit, IQ, Bit, Bit, State, Bit, Bit)
+  -> Signal dom (Bit, Bit, Bit, IQ, Bit)
 ofdm
   -- Inputs
   n_fft
@@ -156,12 +156,9 @@ ofdm
   = bundle (
     pilot_ready_o,
     data_ready_o,
-    data_o,
     valid_o,
-    last_o,
-    state,
-    subcarrierReadEnd,
-    isLast
+    data_o,
+    last_o
     )
   where
     -- ╔══════════════════════════════╗
