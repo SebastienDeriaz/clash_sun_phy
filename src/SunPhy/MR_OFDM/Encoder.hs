@@ -1,7 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DerivingStrategies #-}
 
-module SunPhy.MR_OFDM.Interleaver where
+module SunPhy.MR_OFDM.Encoder where
 
 import Clash.Prelude hiding (foldr, B0, B1)
 import Data.Foldable (foldr)
@@ -131,7 +131,7 @@ encoder
   -> Signal dom Bit -- last_i
   -> Signal dom Bit -- ready_i
   -> Signal dom (Bit, Bit, Bit, Bit) -- ready_o, data_o, valid_o, last_o
-encoder rate valid_i data_i last_i ready_i = bundle(ready_o, data_o, valid_o, last_o)
+encoder rate valid_i data_i last_i ready_i = bundle(ready_o, valid_o, data_o, last_o)
   where
     masterWrite = ready_o * valid_i
     slaveWrite = ready_i * valid_o

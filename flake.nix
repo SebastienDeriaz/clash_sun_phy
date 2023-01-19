@@ -4,7 +4,8 @@
 
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-22.11";
+    #nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
     flake-compat = {
@@ -18,12 +19,12 @@
       # Temporary fix until fix-quartus pull request is accepted
       quartus-overlay = self: super: with builtins; {
         quartus-prime-lite = super.quartus-prime-lite.override {
-         buildFHSUserEnv = attrs: super.buildFHSUserEnv (attrs // {
-           # it's a bug in the quartus package
-           multiPkgs = pkgs: (attrs.multiPkgs pkgs) ++ [
-             pkgs.libxcrypt
-           ];
-         });
+          buildFHSUserEnv = attrs: super.buildFHSUserEnv (attrs // {
+            # it's a bug in the quartus package
+            multiPkgs = pkgs: (attrs.multiPkgs pkgs) ++ [
+              pkgs.libxcrypt
+            ];
+          });
         };
       };
       pkgs = import inputs.nixpkgs {

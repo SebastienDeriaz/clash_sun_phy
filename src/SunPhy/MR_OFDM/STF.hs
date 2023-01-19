@@ -12,7 +12,6 @@ data State = Idle
   deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
   deriving anyclass NFDataX
 
-
 stf
   :: forall dom . (HiddenClockResetEnable dom)
   => Signal dom (Unsigned 3) -- OFDM Option
