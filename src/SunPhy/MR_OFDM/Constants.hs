@@ -52,13 +52,6 @@ nbpsc_mod BPSK  = 1
 nbpsc_mod QPSK  = 2
 nbpsc_mod QAM16 = 4
 
-data CP = CP_NONE
-        | CP_QUARTER
-        | CP_HALF
-  deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
-  deriving anyclass NFDataX
-
-
 mcsModulation :: MCS -> Modulation
 mcsModulation 0 = BPSK
 mcsModulation 1 = BPSK

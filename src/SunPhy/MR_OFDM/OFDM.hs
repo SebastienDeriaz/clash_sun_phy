@@ -8,16 +8,6 @@ import Clash.DSP.FFT.Parallel
 import SunPhy.PN9
 import SunPhy.MR_OFDM.OFDM_Pilots
 
--- NOTE : No modulation factor because it can be encoded inside
--- the modulation parameter, the output modulation must be multiplied
--- by the modulation factor as such :
--- BPSK  1
--- QPSK  1/np.sqrt(2)
--- QAM16 1/np.sqrt(10)
-
--- NOTE : The CP value is removed, it is now
--- either on (1/4) or off (0)
-
 -- NOTE : Only the 128-FFT is implemented. How to calculate 16,32 and 64 FFT then ?
 -- # Fill only the first N values of the input array
 -- subcarriers = 0,0,...,0 x 128 
@@ -110,7 +100,7 @@ ofdm
   -- OFDM Settings
   => Signal dom OFDM_Option -- OFDM_option
   -> Signal dom MCS -- MCS
-  -> Signal dom CP -- CP
+  -> Signal dom Bit -- enable CP (1/4)
   -- Input data
   -> Signal dom Bit -- data_valid_i  
   -> Signal dom Bit -- data_i
@@ -193,8 +183,6 @@ ofdm
       isLast .==. 1 .&&.
       state .==. pure Outp)
 
-    cp_enabled    = boolToBit <$> (cp ./=. pure CP_NONE)
-
     _modulation = mcsModulation <$> mcs
 
     _frequencySpreading = frequencySpreading <$> mcs
@@ -227,7 +215,7 @@ ofdm
     --        │    │ │ │ │ │ │ │ ┌pilotNext
     --        │    │ │ │ │ │ │ │ │ ┌spreadCounter
     --        │    │ │ │ │ │ │ │ │ │ ┌bufferCounter
-    --        │    │ │ │ │ │ │ │ │ │ │ ┌cp_enabled
+    --        │    │ │ │ │ │ │ │ │ │ │ ┌cp
     --        │    │ │ │ │ │ │ │ │ │ │ │ ┌slaveWrite
     -- Init   │    │ │ │ │ │ │ │ │ │ │ │ │
     nextState Init _ _ _ _ _ _ _ _ _ _ _ _ = WPlt -- Write the pilots
@@ -284,7 +272,7 @@ ofdm
       <*> pilotNext
       <*> spreadCounter
       <*> bufferCounter
-      <*> cp_enabled
+      <*> cp
       <*> slaveWrite
 
     state = register (Init :: State) nextState'
@@ -342,26 +330,28 @@ ofdm
     -- ╚═════════════════╝
     -- Subcarrier that results from one or more data bits received
 
+    singleBPSK :: Bit -> MFixed
+    singleBPSK 0 = -1.0
+    singleBPSK 1 = 1.0
+
+
+
     applyModulation :: Modulation -> Bit -> Bit -> Bit -> Bit -> Subcarrier
     --         ┌modulation
-    --         │     ┌data_i
-    --         │     │ ┌m[-1]
-    --         │     │ │ ┌m[-2]
-    --         │     │ │ │ ┌m[-3]
-    -- BPSK    │     │ │ │ │
-    applyModulation BPSK  0 _ _ _ = (-1.0, 0.0)
-    applyModulation BPSK  1 _ _ _ = (1.0, 0.0)
+    --         │          ┌data_i
+    --         │          │ ┌m[-1]
+    --         │          │ │ ┌m[-2]
+    --         │          │ │ │ ┌m[-3]
+    -- BPSK    │          │ │ │ │
+    applyModulation BPSK  a _ _ _ = (singleBPSK a, 0.0)
     -- QPSK
     -- 00 -> -1-1j
-    applyModulation QPSK  0 0 _ _ = (-1.0, -1.0)
     -- 01 -> -1+1j
-    applyModulation QPSK  1 0 _ _ = (-1.0, 1.0)
     -- 10 -> +1-1j
-    applyModulation QPSK  0 1 _ _ = (1.0, -1.0)
     -- 11 -> +1+1j
-    applyModulation QPSK  1 1 _ _ = (1.0, 1.0)
+    applyModulation QPSK  a b _ _ = (singleBPSK b, singleBPSK a)
     -- QAM16
-    applyModulation QAM16 _ _ _ _ = (0.0, 0.0)
+    applyModulation QAM16 a b c d = ((2.0 - singleBPSK b) * (singleBPSK a), (2.0 - singleBPSK d) * (singleBPSK c))
 
     k_mod :: Modulation -> Subcarrier -> Subcarrier
     k_mod BPSK x     = x
@@ -444,9 +434,9 @@ ofdm
 
     -- Counts the number of subcarrier written ("true message" and frequency spreading)
     -- Also counts the output index
-    nextSubcarrierCounter :: State -> CP -> Unsigned 8 -> Bit -> Bit -> Bit -> Bit -> Unsigned 7 -> Unsigned 7
+    nextSubcarrierCounter :: State -> Bit -> Unsigned 8 -> Bit -> Bit -> Bit -> Bit -> Unsigned 7 -> Unsigned 7
     --                    ┌state
-    --                    │    ┌CP
+    --                    │    ┌cp
     --                    │    │          ┌_n_fft 
     --                    │    │          │ ┌subcarrierWrite
     --                    │    │          │ │ ┌write counter end
@@ -454,26 +444,24 @@ ofdm
     --                    │    │          │ │ │ │ ┌read counter end
     --                    │    │          │ │ │ │ │ ┌counter
     -- Idle -> reset      │    │          │ │ │ │ │ │ 
-    nextSubcarrierCounter Idle _          _ _ _ _ _ _ = 0
-    nextSubcarrierCounter WPlt _          _ _ _ _ _ _ = 0 -- Do not count pilot write, skip will do it
+    nextSubcarrierCounter Idle _ _ _ _ _ _ _ = 0
+    nextSubcarrierCounter WPlt _ _ _ _ _ _ _ = 0 -- Do not count pilot write, skip will do it
     -- Reading
-    nextSubcarrierCounter Outp _          _ _ _ 1 _ x = x + 1
-    nextSubcarrierCounter Outp _          _ _ _ 0 _ x = x
+    nextSubcarrierCounter Outp _ _ _ _ 1 _ x = x + 1
+    nextSubcarrierCounter Outp _ _ _ _ 0 _ x = x
     -- Reading (CP)
-    nextSubcarrierCounter OuCP _          _ _ _ 1 1 _ = 0 -- Reset for (not CP this time)
-    nextSubcarrierCounter OuCP _          _ _ _ 1 _ x = x + 1
-    nextSubcarrierCounter OuCP _          _ _ _ 0 _ x = x
+    nextSubcarrierCounter OuCP _ _ _ _ 1 1 _ = 0 -- Reset for (not CP this time)
+    nextSubcarrierCounter OuCP _ _ _ _ 1 _ x = x + 1
+    nextSubcarrierCounter OuCP _ _ _ _ 0 _ x = x
     -- Writing
-    nextSubcarrierCounter Skip _          _ _ 0 _ _ x = x + 1
-    nextSubcarrierCounter _    CP_NONE    _ 1 1 _ _ _ = 0 -- Reset for output (CP or not)
-    nextSubcarrierCounter _    CP_HALF    n 1 1 _ _ _ = resize $ n `div` 2 -- Go at Half width
-    nextSubcarrierCounter _    CP_QUARTER n 1 1 _ _ _ = resize $ n `div` 4 * 3 -- Go at 3/4
-    nextSubcarrierCounter Skip CP_NONE    _ _ 1 _ _ _ = 0 -- Reset for output (CP or not)
-    nextSubcarrierCounter Skip CP_HALF    n _ 1 _ _ _ = resize $ n `div` 2 -- Go at Half width
-    nextSubcarrierCounter Skip CP_QUARTER n _ 1 _ _ _ = resize $ n `div` 4 * 3 -- Go at 3/4
-    nextSubcarrierCounter _    _          _ 1 _ _ _ x = x + 1
+    nextSubcarrierCounter Skip _ _ _ 0 _ _ x = x + 1
+    nextSubcarrierCounter _    0 _ 1 1 _ _ _ = 0 -- Reset for output (CP or not)
+    nextSubcarrierCounter _    1 n 1 1 _ _ _ = resize $ n `div` 4 * 3 -- Go at 3/4
+    nextSubcarrierCounter Skip 0 _ _ 1 _ _ _ = 0 -- Reset for output (CP or not)
+    nextSubcarrierCounter Skip 1 n _ 1 _ _ _ = resize $ n `div` 4 * 3 -- Go at 3/4
+    nextSubcarrierCounter _    _ _ 1 _ _ _ x = x + 1
     -- Default
-    nextSubcarrierCounter _    _          _ 0 _ _ _ x = x
+    nextSubcarrierCounter _    _ _ 0 _ _ _ x = x
 
     -- Output step, this is for getting a N/step sized FFT out of the 128FFT
     outputStep :: Unsigned 8 -> Unsigned 7
