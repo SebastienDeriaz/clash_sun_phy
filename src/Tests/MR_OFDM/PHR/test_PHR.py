@@ -26,12 +26,12 @@ def test_HCS():
 
     N = inp.size
     PAD = 2
-    valid_i = Signal('valid_i', [0,0] + N*[1] + PAD*[0])
+    start_i = Signal('start_i', [0,0] + N*[1] + PAD*[0])
     data_i = Signal('data_i', [0,0] + inp.tolist() + PAD*[0])
     hcs_out = Signal('hcs_out', [Level.UNKNOWN]*(N+2) + [hcs_th_str] + (PAD-1)*[Level.UNKNOWN])
 
     tb.setInputs([
-        valid_i,
+        start_i,
         data_i
     ])
 
@@ -81,7 +81,7 @@ def test_PHR():
         cg["Scrambler"],
         cg["phrLength"],
         cg["ready_i"],
-        cg["valid_i"]
+        cg["start_i"]
     ])
 
     tb.setExpectedOutputs([

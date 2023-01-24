@@ -128,17 +128,17 @@ interleaver
   -> Signal dom Bit -- data_i
   -> Signal dom Bit -- last_i
   -> Signal dom Bit -- ready_i
-  -> Signal dom (Bit, Bit, Bit, Bit) -- ready_o, data_o, valid_o, last_o, test
-interleaver bp mcs ofdmOption _phyOFDMInterleaving valid_i data_i last_i ready_i = bundle(ready_o, data_o, valid_o, last_o)
+  -> Signal dom (Bit, Bit, Bit, Bit) -- ready_o, valid_o, data_o, last_o, test
+interleaver bp mcs ofdmOption _phyOFDMInterleaving valid_i data_i last_i ready_i = bundle(ready_o, valid_o, data_o, last_o)
   where
     _sf = frequencySpreading <$> mcs
     _nbpsc = nbpsc <$> mcs
-    _nfft = nfft <$> ofdmOption
+    _n_fft = n_fft <$> ofdmOption
 
     _n_row :: Signal dom (Unsigned 4)
     _n_row = n_row <$> _sf
 
-    _ncbps = ncbps <$> _phyOFDMInterleaving <*> _nfft <*> _nbpsc <*> _sf
+    _ncbps = ncbps <$> _phyOFDMInterleaving <*> _n_fft <*> _nbpsc <*> _sf
     _s :: Signal dom (Unsigned 2)
     _s = s <$> _nbpsc
 

@@ -18,8 +18,14 @@ def test_PN9():
         cg["reset_i"]
     ])
 
-    tb.setExpectedOutputs([cg["data_o"]])
-    tb.setActualOutputsNames(["data_o (actual)"])
+    tb.setExpectedOutputs([
+        cg["data_o"],
+        None
+        ])
+    tb.setActualOutputsNames([
+        "data_o (actual)",
+        "reg"
+        ])
     tb.run()
 
     cg.loadTestbench(tb)

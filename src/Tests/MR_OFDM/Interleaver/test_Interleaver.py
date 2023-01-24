@@ -114,7 +114,6 @@ def test_J(_MCS, _OFDM_Option, _phyOFDMInterleaving):
 
 
 @pytest.mark.parametrize("_MCS, _OFDM_Option, _phyOFDMInterleaving", test_options)
-#@pytest.mark.parametrize("_MCS, _OFDM_Option, _phyOFDMInterleaving", [(0,1,0)])
 def test_Interleaver(_MCS, _OFDM_Option, _phyOFDMInterleaving):
     tb = Testbench(filepath, 'interleaver')
     N_FFT = FFT_SIZE[_OFDM_Option]
@@ -179,17 +178,96 @@ def test_Interleaver(_MCS, _OFDM_Option, _phyOFDMInterleaving):
         "ready_o (actual)",
         "data_o (actual)",
         "valid_o (actual)",
-        "last_o (actual)",
-        "test"
+        "last_o (actual)"
     ])
-
-    # cg.setTemplates({
-    #     "data_o (actual)" : "data_o"
-    # })
 
 
     tb.run()
-    cg = Chronogram()
+
+    for s in tb:
+        if s.isChecked():
+            s.print(True)
+            assert s.isValid(), s.message()
+        else:
+            s.print(True)
+
+def test_Interleaver_single():
+    _MCS = 3
+    _OFDM_Option = 4
+    _phyOFDMInterleaving = 0
+
+    tb = Testbench(filepath, 'interleaver')
+    cg = Chronogram(join(dirname(__file__), 'test_Interleaver.json'))
+
+    N_FFT = FFT_SIZE[_OFDM_Option]
+    SF = FREQUENCY_SPREADING[_MCS]
+    N_bpsc = N_BPSC[_MCS]
+
+    if _phyOFDMInterleaving == 0:
+        # interleaving depth of 1
+        N_cbps = int(np.round(N_FFT * N_bpsc / SF * (3/4)))
+    else:
+        # interleaving depth of SF
+        # See table
+        N_cbps = int(np.round(N_FFT * N_bpsc * (3/4)))
+
+    np.random.seed(0)
+    message = np.random.randint(0,1+1,N_cbps)
+
+    print(f"{N_FFT = }")
+    print(f"{N_cbps = }")
+    print(f"{N_bpsc = }")
+    print(f"{SF = }")
+    
+
+    try:
+        mod = Mr_ofdm_modulator(
+            MCS = _MCS,
+            OFDM_Option = _OFDM_Option,
+            phyOFDMInterleaving = _phyOFDMInterleaving,
+            scrambler = 0,
+        )
+    except UnsupportedError as e:
+        return
+    
+    interleavedMessage = mod._interleaver(message, _MCS)
+
+    print(f"{message}")
+    print("             |")
+    print("             V")
+    print(f"{interleavedMessage}")
+
+    tb.setInputs([
+        cg["bypass"],
+        cg["MCS"],
+        cg["OFDM_Option"],
+        cg["phyOFDMInterleaving"],
+        cg["valid_i"],
+        cg["data_i"],
+        cg["last_i"],
+        cg["ready_i"]
+    ])
+
+    tb.setExpectedOutputs([
+        cg["ready_o"],
+        cg["valid_o"],
+        cg["data_o"],
+        cg["last_o"]
+    ])
+
+    tb.setActualOutputsNames([
+        "ready_o (actual)",
+        "data_o (actual)",
+        "valid_o (actual)",
+        "last_o (actual)"
+    ])
+
+    cg.setTemplates({
+        "data_o (actual)" : "data_o"
+    })
+
+
+    tb.run()
 
     cg.setSignals(tb.getAllSignals())
     cg.saveSVG(join(dirname(__file__), 'test_Interleaver.svg'))
@@ -202,6 +280,4 @@ def test_Interleaver(_MCS, _OFDM_Option, _phyOFDMInterleaving):
             s.print(True)
 
 if __name__ == '__main__':
-    for d in test_options:
-        print(d)
-        test_I(*d)
+    test_Interleaver_single()

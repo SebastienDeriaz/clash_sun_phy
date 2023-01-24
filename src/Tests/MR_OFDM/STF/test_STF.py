@@ -34,7 +34,6 @@ def test_HCS(OFDM_Option):
     ready_i = Signal('ready_i', [1])
 
     valid_o = Signal('valid_o', [0,0,0] + N * [1] + (PAD) * [0])
-    ready_o = Signal('ready_o', [1])    
     last_o = Signal('last_o', [0,0,0] + (N-1)*[0] + [1] + PAD*[0])
 
     tb.setInputs([
@@ -58,7 +57,7 @@ def test_HCS(OFDM_Option):
     tb.run()
     cg = Chronogram()
     cg.setSignals(tb.getAllSignals())
-    cg.saveSVG(join(dirname(__file__), 'test_STF.svg'), 4)
+    cg.saveSVG(join(dirname(__file__), 'test_STF.svg'), 1)
 
     for s in tb:
         if s.isChecked():
@@ -71,4 +70,11 @@ def test_HCS(OFDM_Option):
     data = np.stack([(float(a), float(b)) for a,b in [str(x)[1:-1].split(',') for x in tb._actualOutputs["data_o (actual)"][3:(3+N)]]])
     data_th = np.stack([stf_th_i, stf_th_q], axis=1)
 
+    plt.figure()
+    plt.plot(data.real)
+    plt.show()
+
     assert np.var(data - data_th) < 0.001
+
+if __name__ == '__main__':
+    test_HCS(4)

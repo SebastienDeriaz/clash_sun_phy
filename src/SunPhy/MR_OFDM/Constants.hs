@@ -88,3 +88,34 @@ kModQPSK = $$(fLit (1 / sqrt 2))
 
 kModQAM16 :: MFixed
 kModQAM16 = $$(fLit (1 / sqrt 10))
+
+lowestMCS :: OFDM_Option -> MCS
+lowestMCS 1 = 0
+lowestMCS 2 = 0
+lowestMCS 3 = 1
+lowestMCS 4 = 2
+
+-- Rate
+-- 0 : 1/2
+-- 1 : 3/4
+rate :: MCS -> Bit
+rate 0 = 0
+rate 1 = 0
+rate 2 = 0
+rate 3 = 0
+rate 4 = 1
+rate 5 = 0
+rate 6 = 1
+
+phrNSymbols :: OFDM_Option -> Bit -> Unsigned 3
+-- ofdm option, phyOFDMInterleaving
+phrNSymbols 1 0 = 3
+phrNSymbols _ 0 = 6
+phrNSymbols 1 1 = 4
+phrNSymbols 2 1 = 8
+phrNSymbols _ 1 = 6
+
+-- Manually tested -> ok
+n_cbps :: OFDM_Option -> MCS -> Bit -> Unsigned 8
+n_cbps o m 0 = (resize $ n_fft o) `div` 4 * (resize $ nbpsc m) `div` (resize $ frequencySpreading m) * 3
+n_cbps o m 1 = (resize $ n_fft o) `div` 4 * (resize $ nbpsc m) * 3

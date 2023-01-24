@@ -1,9 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module SunPhy.MR_OFDM.PHR where
+module SunPhy.MR_OFDM.PHR (phr) where
 
 import Clash.Prelude
+import SunPhy.MR_OFDM.Constants
 
 -- PHR is 36 bits long, the rest if the PHR is bigger is 0s
 -- 0-4   : RA4 - RA0   Rate
@@ -54,7 +55,7 @@ data State = Idle
 
 nextBitIndex :: State -> Bit -> Unsigned 4 -> Unsigned 4
 --           ┌state
---           │       ┌valid_i 
+--           │       ┌start_i 
 --           │       │ ┌ready_o
 -- Idle      │       │ │
 nextBitIndex Running 0 x = x
@@ -64,13 +65,13 @@ nextBitIndex _       _ x = 0
 
 serialHCS
   :: forall dom . (HiddenClockResetEnable dom)
-  => Signal dom Bit -- valid_i
+  => Signal dom Bit -- start_i
   -> Signal dom Bit -- data_i
   -> Signal dom (BitVector 8) -- HCS out
-serialHCS valid_i data_i = output
+serialHCS start_i data_i = output
   where
     nextB :: Bit -> Bit -> BitVector 8 -> BitVector 8
-    --    ┌valid_i
+    --    ┌start_i
     --    │ ┌data_i 
     --    │ │ ┌b
     --    │ │ │
@@ -82,7 +83,7 @@ serialHCS valid_i data_i = output
     -- msb = (B & (1<<7)) >> 7
     -- return (B << 1 ^ (0b111 * (inp ^ msb))) & 0b1111_1111
 
-    b = register (0 :: BitVector 8) $ nextB <$> valid_i <*> data_i <*> b
+    b = register (0 :: BitVector 8) $ nextB <$> start_i <*> data_i <*> b
 
     a = pure (0b0100_1011 :: BitVector 8)
 
@@ -91,21 +92,21 @@ serialHCS valid_i data_i = output
 
 phr
   :: forall dom . (HiddenClockResetEnable dom)
-  => Signal dom (Unsigned 5) -- Rate
+  => Signal dom MCS -- Rate
   -> Signal dom (Unsigned 11) -- FrameLength
   -> Signal dom (Unsigned 2) -- Scrambler
   -> Signal dom (Unsigned 7) -- PHR length
   -> Signal dom Bit -- ready_i
-  -> Signal dom Bit -- valid_i
-  -> Signal dom (Bit, Bit, Bit) -- valid_o, data_o, last_o
-phr rate frameLength scrambler phrLength ready_i valid_i = bundle(valid_o, data_o, last_o)
+  -> Signal dom Bit -- start_i
+  -> Signal dom (Bit, Bit, Bit, Unsigned 7) -- valid_o, data_o, last_o
+phr rate frameLength scrambler phrLength ready_i start_i = bundle(valid_o, data_o, last_o, bitCounter)
   where
     slaveWrite = ready_i * valid_o
 
     nextState :: State -> Bit -> Bit -> Bit -> State
     --        ┌state
     --        │       ┌counterEnd 
-    --        │       │ ┌valid_i
+    --        │       │ ┌start_i
     --        │       │ │ ┌slaveWrite
     -- Idle   │       │ │ │
     nextState Idle    _ 1 _ = Running
@@ -113,15 +114,16 @@ phr rate frameLength scrambler phrLength ready_i valid_i = bundle(valid_o, data_
     nextState Running 1 _ 1 = Idle
     nextState Running _ _ _ = Running
 
-    state = register Idle (nextState <$> state <*> bitCounterEnd <*> valid_i <*> slaveWrite)
+    state = register Idle (nextState <$> state <*> bitCounterEnd <*> start_i <*> slaveWrite)
 
 
-    nextBitCounter :: State -> Unsigned 7 -> Unsigned 7
-    nextBitCounter Idle    _ = 0
-    nextBitCounter Running x = x + 1
-    nextBitCounter _       x = x
+    nextBitCounter :: State -> Bit -> Unsigned 7 -> Unsigned 7
+    -- state, slaveWrite
+    nextBitCounter Idle    _ _ = 0
+    nextBitCounter Running 1 x = x + 1
+    nextBitCounter _       _ x = x
 
-    bitCounter = register (0 :: Unsigned 7) (nextBitCounter <$> state <*> bitCounter)
+    bitCounter = register (0 :: Unsigned 7) (nextBitCounter <$> state <*> slaveWrite <*> bitCounter)
 
     bitCounterEnd = boolToBit <$> (bitCounter .==. phrLength)
     last_o = bitCounterEnd
@@ -143,7 +145,7 @@ phr rate frameLength scrambler phrLength ready_i valid_i = bundle(valid_o, data_
 
     data_o = dataOut <$> state <*> phr <*> hcs <*> bitCounter
 
-    serialHCS_valid_i = boolToBit <$> (bitCounter .<. 22 .&&. slaveWrite .==. 1)
-    hcs = serialHCS serialHCS_valid_i data_o
+    serialHCS_start_i = boolToBit <$> (bitCounter .<. 22 .&&. slaveWrite .==. 1)
+    hcs = serialHCS serialHCS_start_i data_o
 
-    phr = PHR <$> rate <*> frameLength <*> scrambler
+    phr = PHR <$> (resize <$> rate) <*> frameLength <*> scrambler
