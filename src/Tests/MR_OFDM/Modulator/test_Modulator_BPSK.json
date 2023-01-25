@@ -1,0 +1,22 @@
+{"signal": [
+   {"wave": "3....3...3..3...............", "name": "MCS", "data" : [0,1,0,1]},
+  {},
+  ["Left",
+   {"wave": "1...010..10101010101010101..", "name": "ready_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "ready_o (actual)"},
+   {"wave": "0..1....................0...", "name": "valid_i"},
+   {"wave": "0..34.3...4.3.4.3.4.3.4.0...", "name": "data_i", "data": [1, 0, 0, 1, 0, 1, 0, 1, 0, 0]},
+   {"wave": "0.....................1.0...", "name": "last_i"}
+  ],
+  {},
+  ["Right",
+   {"wave": "1.....0.1...................", "name": "ready_i"},
+   {"wave": "0...101..01010101010101010..", "name": "valid_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "valid_o (actual)"},
+   {"wave": "xxxx3x3..x3x3x3x3x3x3x3x3xxx", "name": "data_o", "data" : ["(1.0,0.0)", "(-1.0,0.0)", "(-1.0,0.0)", "(1.0,0.0)", "(-1.0,0.0)", "(1.0,0.0)", "(-1.0,0.0)", "(1.0,0.0)", "(-1.0,0.0)","(-1.0,0.0)"]},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "data_o (actual)"},
+   {"wave": "0.......................10..", "name": "last_o"},
+   {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "last_o (actual)"}
+  ],
+  {}
+]}
