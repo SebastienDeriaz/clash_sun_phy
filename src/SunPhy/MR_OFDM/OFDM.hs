@@ -600,7 +600,7 @@ ofdm
     -- Idle         │    │ │ │ │ │
     nextSubcarriers Init _ _ _ _ _ = repeat (0.0,0.0) :: Vec 128 Subcarrier
     -- WPlt / WDat
-    nextSubcarriers _    1 i v n x = replace (ifftshift n i) v x
+    nextSubcarriers _    1 i v n x = replace (ifftshift n i) (iqConj v) x -- Apply conjugate here to help the IFFT
     nextSubcarriers _    _ _ _ _ x = x
 
     subcarriers = register (repeat (0.0,0.0) :: Vec 128 Subcarrier) (nextSubcarriers
@@ -611,38 +611,42 @@ ofdm
       <*> _n_fft
       <*> subcarriers)
 
-    subcarrierValue :: State -> Unsigned 3 -> Unsigned 2 -> Unsigned 7 -> Bit -> Subcarrier -> Subcarrier
-    -- state, pilot_value, modData
+    subcarrierValue :: State -> Unsigned 3 -> Unsigned 2 -> Unsigned 7 -> Bit -> Subcarrier -> Subcarrier -> Subcarrier
     --              ┌state
-    --              │            ┌pilot value
-    --              │            │ ┌modData
-    --              │            │ │
-    --              │            │ │ 
-    --              │            │ │ 
-    -- Idle         │            │ │ 
-    subcarrierValue Idle _  _  _ _ _ = (0.0, 0.0)
+    --              │    ┌frequencySpreading  
+    --              │    │  ┌spreadCounter
+    --              │    │  │  ┌dataCounter
+    --              │    │  │  │ ┌pilot value 
+    --              │    │  │  │ │ ┌dataSubcarrier 
+    --              │    │  │  │ │ │ ┌dataSubcarrierStore
+    -- Idle         │    │  │  │ │ │ │
+    subcarrierValue Idle _  _  _ _ _ _ = (0.0, 0.0)
     -- WPlt
-    subcarrierValue WPlt _  _  _ 0 _ = (-1.0, 0.0)
-    subcarrierValue WPlt _  _  _ 1 _ = (1.0, 0.0)
+    subcarrierValue WPlt _  _  _ 0 _ _ = (-1.0, 0.0)
+    subcarrierValue WPlt _  _  _ 1 _ _ = (1.0, 0.0)
     -- WDat
-    subcarrierValue WDat sf sc k _ x = sfPhase sf sc k x
-    subcarrierValue WrSF sf sc k _ x = sfPhase sf sc k x
-    subcarrierValue _    _  _  _ _ _ = (0.0, 0.0)
+    subcarrierValue WDat sf sc k _ x _ = sfPhase sf sc k x
+    subcarrierValue WrSF sf sc k _ _ y = sfPhase sf sc k y
+    subcarrierValue _    _  _  _ _ _ _ = (0.0, 0.0)
 
-    -- Conjugate of an IQ pair, this is to calculate the IFFT with an FFT (IFFT chapter)
-    iqConj :: IQ -> IQ
-    iqConj (a,b) = (a,-b)
 
     -- spreadCounter, index, old carrier, new carrier
     -- Value to put in the subcarriers
-    subcarrierValue' = iqConj <$> (subcarrierValue <$> state <*> _frequencySpreading <*> spreadCounter <*> dataCounter <*> pilotValue <*> (
-      mux (state .==. pure WDat)
-      dataSubcarrier
-      dataSubcarrierStore))
+    subcarrierValue' = subcarrierValue
+      <$> state
+      <*> _frequencySpreading
+      <*> spreadCounter
+      <*> dataCounter
+      <*> pilotValue
+      <*> dataSubcarrier
+      <*> dataSubcarrierStore
 
     -- ╔══════╗
     -- ║ IFFT ║
     -- ╚══════╝
+    -- Conjugate of an IQ pair, this is to calculate the IFFT with an FFT (IFFT chapter)
+    iqConj :: IQ -> IQ
+    iqConj (a,b) = (a,-b)
 
     toCplx :: IQ -> Complex MFixed
     toCplx (a,b) = a :+ b
@@ -659,7 +663,7 @@ ofdm
     fromCplxVec :: Vec 128 (Complex MFixed) -> Vec 128 (IQ)
     fromCplxVec v = fromCplx <$> v
 
-    -- NOTE : Only the FFT is made by Adam Walker, how to do an IFFT ?
+    -- NOTE : Only the FFT is made by Adam Walker, how to do an IFFT then ?
     -- A handy formula exists (source needed)
     -- 
     -- IFFT(x) = 1/N * conj(fft(conj(x)))
