@@ -7,6 +7,7 @@ import Clash.DSP.Complex
 import Clash.DSP.FFT.Parallel
 import SunPhy.PN9
 import SunPhy.MR_OFDM.OFDM_Pilots
+import SunPhy.MR_OFDM.Modulator
 
 -- NOTE : Only the 128-FFT is implemented. How to calculate 16,32 and 64 FFT then ?
 -- # Fill only the first N values of the input array
@@ -36,10 +37,8 @@ ifftshift nfft i
 data State = Init -- Initial state
            | Idle -- Wait for data
            | WPlt
-           | BufD
            | WDat
            | WrSF
-           | Skip
            | Outp
            | OuCP
   deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
@@ -111,7 +110,7 @@ ofdm
   -> Signal dom (BitVector 9) -- pn9seed_data_i (pn9 starting seed)
   -> Signal dom Bit -- pn9seed_write_i
   -> Signal dom Bit -- ready_i
-  -> Signal dom (Bit, Bit, IQ, Bit, Unsigned 4, BitVector 9, State, Unsigned 7, Bit, Bit)
+  -> Signal dom (Bit, Bit, IQ, Bit, Unsigned 4, BitVector 9, State, Unsigned 7, Unsigned 7, Bit, Unsigned 128, Unsigned 3)
 ofdm
   -- Inputs
   ofdmOption
@@ -127,44 +126,35 @@ ofdm
   ready_i
   -- Outputs
   = bundle (
-    data_ready_o,
+    mod_ready_o,
     valid_o,
     data_o,
     last_o,
     pilotSetCounter,
     pn9_reg,
     state,
+    subcarrierIndex,
     subcarrierCounter,
-    subcarrierWriteEnd,
-    pilotNext
+    writeFlagHere,
+    unpack <$> subcarrierWriteFlags,
+    hopCounter
     )
   where
-    state_num :: State -> Unsigned 4
-    state_num Init = 1
-    state_num Idle = 2
-    state_num WPlt = 3
-    state_num BufD = 4
-    state_num WDat = 5
-    state_num WrSF = 6
-    state_num Skip = 7
-    state_num Outp = 8
-    state_num OuCP = 9
-
-
     _n_fft = n_fft <$> ofdmOption
+
+    (mod_ready_o, mod_valid_o, mod_data_o, mod_last_o) = unbundle $ modulator mcs payload_valid_i payload_data_i payload_last_i mod_ready_i
 
     -- ╔══════════════════════════════╗
     -- ║ Outputs and output functions ║
     -- ╚══════════════════════════════╝
     -- pilot_ready_o
     pilot_ready_o = boolToBit <$> (state .==. pure WPlt)
-    -- data_ready_o
+    -- mod_ready_i
     dataReady :: State -> Bit
     dataReady WDat  = 1
-    dataReady BufD  = 1
     dataReady _     = 0
 
-    data_ready_o  = dataReady <$> state
+    mod_ready_i  = dataReady <$> state
     -- data_o
     dataOut :: Enum n => State -> Vec 128 IQ -> n -> IQ
     --      ┌state
@@ -175,7 +165,7 @@ ofdm
     dataOut Outp v i = v !! i
     dataOut _    _ _ = (0,0)
 
-    data_o        = dataOut <$> state <*> fftOutput <*> subcarrierIndex'
+    data_o        = dataOut <$> state <*> fftOutput <*> subcarrierIndex
 
     valid :: State -> Bit
     valid Outp = 1
@@ -197,7 +187,7 @@ ofdm
     -- ║ Shortcuts ║
     -- ╚═══════════╝
 
-    dataWrite = data_ready_o * payload_valid_i
+    dataWrite = mod_ready_i * mod_valid_o
     slaveWrite = valid_o * ready_i
 
     _dataTones = dataTones <$> ofdmOption
@@ -209,7 +199,7 @@ ofdm
     -- ╚═══════════════╝
 
     -- State
-    nextState :: State -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Unsigned 2 -> Unsigned 2 -> Bit -> Bit -> State
+    nextState :: State -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Bit -> Unsigned 2 -> Bit -> Bit -> State
     --        ┌state
     --        │    ┌pilotset_write_i
     --        │    │ ┌pilotCounterEnd
@@ -218,88 +208,50 @@ ofdm
     --        │    │ │ │ │ ┌dataWrite
     --        │    │ │ │ │ │ ┌subcarrierWriteEnd
     --        │    │ │ │ │ │ │ ┌subcarrierReadEnd
-    --        │    │ │ │ │ │ │ │ ┌pilotNext
-    --        │    │ │ │ │ │ │ │ │ ┌spreadCounter
-    --        │    │ │ │ │ │ │ │ │ │ ┌bufferCounter
-    --        │    │ │ │ │ │ │ │ │ │ │ ┌cp
-    --        │    │ │ │ │ │ │ │ │ │ │ │ ┌slaveWrite
-    -- Init   │    │ │ │ │ │ │ │ │ │ │ │ │
-    nextState Init _ _ _ _ _ _ _ _ _ _ _ _ = WPlt -- Write the pilots
+    --        │    │ │ │ │ │ │ │ ┌spreadCounter
+    --        │    │ │ │ │ │ │ │ │ ┌cp
+    --        │    │ │ │ │ │ │ │ │ │ ┌slaveWrite
+    -- Init   │    │ │ │ │ │ │ │ │ │ │
+    nextState Init _ _ _ _ _ _ _ _ _ _ = WPlt -- Write the pilots
     -- Idle
-    nextState Idle 1 _ _ _ _ _ _ _ _ _ _ _ = WPlt -- Write the pilots
-    nextState Idle _ _ 1 _ _ _ _ 1 _ _ _ _ = Skip
-    nextState Idle _ _ 1 _ _ _ _ 0 _ 0 _ _ = WDat
-    nextState Idle _ _ 1 _ _ _ _ 0 _ _ _ _ = BufD
-    nextState Idle _ _ _ _ _ _ _ _ _ _ _ _ = Idle
+    nextState Idle 1 _ _ _ _ _ _ _ _ _ = WPlt -- Write the pilots
+    nextState Idle _ _ 1 _ _ _ _ _ _ _ = WDat
+    nextState Idle _ _ _ _ _ _ _ _ _ _ = Idle
     -- Write pilot                             
-    nextState WPlt _ 1 _ _ _ _ _ _ _ _ _ _ = Idle
-    nextState WPlt _ 0 _ _ _ _ _ _ _ _ _ _ = WPlt
-    -- Buffer data                             
-    nextState BufD _ _ _ _ 1 _ _ 1 _ 0 _ _ = Skip
-    nextState BufD _ _ _ _ 1 _ _ 0 _ 0 _ _ = WDat
-    nextState BufD _ _ _ _ _ _ _ _ _ _ _ _ = BufD
+    nextState WPlt _ 1 _ _ _ _ _ _ _ _ = Idle
+    nextState WPlt _ 0 _ _ _ _ _ _ _ _ = WPlt
     -- Write data                             
-    --nextState WDat _ _ _ _ 1 _ _ _ 0 _ 0 _ = Outp
-    --nextState WDat _ _ _ _ 1 _ _ _ 0 _ 1 _ = OuCP
-    nextState WDat _ _ _ _ 1 1 _ _ 0 _ 0 _ = Outp
-    nextState WDat _ _ _ _ 1 1 _ _ 0 _ 1 _ = OuCP
-    nextState WDat _ _ _ _ 0 _ _ 0 _ _ _ _ = WDat
-    nextState WDat _ _ _ _ _ _ _ 1 0 _ _ _ = Skip
-    nextState WDat _ _ _ _ _ _ _ 0 0 0 _ _ = WDat
-    nextState WDat _ _ _ _ _ _ _ 0 0 _ _ _ = BufD
-    nextState WDat _ _ _ _ 1 _ _ _ _ _ _ _ = WrSF
+    nextState WDat _ _ _ _ 0 _ _ _ _ _ = WDat -- Stay here if data isn't valid
+    nextState WDat _ _ _ _ 1 1 _ 0 0 _ = Outp
+    nextState WDat _ _ _ _ 1 1 _ 0 1 _ = OuCP
+    nextState WDat _ _ _ _ 1 _ _ 0 _ _ = WDat
+    nextState WDat _ _ _ _ 1 _ _ _ _ _ = WrSF
     -- Write frequency spreading             
-    nextState WrSF _ _ _ _ _ 0 _ 0 0 0 _ _ = WDat
-    nextState WrSF _ _ _ _ _ 0 _ 1 0 _ _ _ = Skip
-    nextState WrSF _ _ _ _ _ 0 _ 0 0 _ _ _ = BufD
-    nextState WrSF _ _ _ _ _ 1 _ _ _ _ 0 _ = Outp -- the spread counter must be 0, no need to check it
-    nextState WrSF _ _ _ _ _ 1 _ _ _ _ 1 _ = OuCP -- the spread counter must be 0, no need to check it
-    nextState WrSF _ _ _ _ _ _ _ _ _ _ _ _ = WrSF
-    -- Pilot skip             
-    --nextState Skip _ _ _ _ _ 1 _ _ _ _ 0 _ = Outp
-    nextState Skip _ _ _ _ _ 1 _ _ _ _ 1 _ = OuCP
-    nextState Skip _ _ _ _ _ _ _ 1 _ _ _ _ = Skip
-    nextState Skip _ _ _ _ _ _ _ 0 _ 0 _ _ = WDat
-    nextState Skip _ _ _ _ _ _ _ 0 _ _ _ _ = BufD
+    nextState WrSF _ _ _ _ _ 0 _ 0 _ _ = WDat
+    nextState WrSF _ _ _ _ _ 1 _ _ 0 _ = Outp -- the spread counter must be 0, no need to check it
+    nextState WrSF _ _ _ _ _ 1 _ _ 1 _ = OuCP -- the spread counter must be 0, no need to check it
+    nextState WrSF _ _ _ _ _ _ _ _ _ _ = WrSF
     -- Output CP                             
-    nextState OuCP _ _ _ _ _ _ 1 _ _ _ _ 1 = Outp
-    nextState OuCP _ _ _ _ _ _ _ _ _ _ _ _ = OuCP
+    nextState OuCP _ _ _ _ _ _ 1 _ _ 1 = Outp
+    nextState OuCP _ _ _ _ _ _ _ _ _ _ = OuCP
     -- Output                             
-    nextState Outp _ _ _ _ _ _ 1 _ _ _ _ 1 = WPlt
-    nextState Outp _ _ _ _ _ _ _ _ _ _ _ _ = Outp
+    nextState Outp _ _ _ _ _ _ 1 _ _ 1 = WPlt
+    nextState Outp _ _ _ _ _ _ _ _ _ _ = Outp
 
     nextState' = nextState
       <$> state
       <*> pilotset_write_i
       <*> pilotCounterEnd
-      <*> payload_valid_i
-      <*> payload_last_i
+      <*> mod_valid_o
+      <*> mod_last_o
       <*> dataWrite
       <*> subcarrierWriteEnd
       <*> subcarrierReadEnd
-      <*> pilotNext
       <*> spreadCounter
-      <*> bufferCounter
       <*> cp
       <*> slaveWrite
 
     state = register (Init :: State) nextState'
-
-    -- ╔════════════════╗
-    -- ║ Data Buffering ║
-    -- ╚════════════════╝
-    -- Only when mod != BPSK
-    nextBufferCounter :: State -> Modulation -> Unsigned 2 -> Unsigned 2
-    --                ┌next state
-    --                │     ┌modulation
-    --                │     │   ┌counter
-    --                │     │   │
-    nextBufferCounter WDat  mod 0 = (nbpsc_mod mod) - 1
-    nextBufferCounter BufD  _   x = x - 1
-    nextBufferCounter _     mod _ = (nbpsc_mod mod) - 1
-
-    bufferCounter = register (0 :: Unsigned 2) (nextBufferCounter <$> nextState' <*> _modulation <*> bufferCounter)
-    bufferReady = boolToBit <$> (bufferCounter .==. 0 .&&. state .==. pure WDat)
 
     -- ╔══════════════╗
     -- ║ Data Counter ║
@@ -331,50 +283,19 @@ ofdm
     nextIsLast WDat l _ = l
     nextIsLast _    _ x = x
 
-    isLast = register (0 :: Bit) (nextIsLast <$> state <*> payload_last_i <*> isLast)
+    isLast = register (0 :: Bit) (nextIsLast <$> state <*> mod_last_o <*> isLast)
 
     -- ╔═════════════════╗
     -- ║ Data subcarrier ║
     -- ╚═════════════════╝
     -- Subcarrier that results from one or more data bits received
 
-    singleBPSK :: Bit -> MFixed
-    singleBPSK 0 = -1.0
-    singleBPSK 1 = 1.0
-
-
-
-    applyModulation :: Modulation -> Bit -> Bit -> Bit -> Bit -> Subcarrier
-    --         ┌modulation
-    --         │          ┌data_i
-    --         │          │ ┌m[-1]
-    --         │          │ │ ┌m[-2]
-    --         │          │ │ │ ┌m[-3]
-    -- BPSK    │          │ │ │ │
-    applyModulation BPSK  a _ _ _ = (singleBPSK a, 0.0)
-    -- QPSK
-    -- 00 -> -1-1j
-    -- 01 -> -1+1j
-    -- 10 -> +1-1j
-    -- 11 -> +1+1j
-    applyModulation QPSK  a b _ _ = (singleBPSK b, singleBPSK a)
-    -- QAM16
-    applyModulation QAM16 a b c d = ((2.0 - (singleBPSK c)) * (singleBPSK d), (2.0 - (singleBPSK a)) * (singleBPSK b))
-
     k_mod :: Modulation -> Subcarrier -> Subcarrier
     k_mod BPSK x     = x
     k_mod QPSK (a,b) = (a * kModQPSK, b * kModQPSK)
     k_mod QAM16 (a,b) = (a * kModQAM16, b * kModQAM16)
 
-    dataSubcarrier = k_mod <$> _modulation <*> (applyModulation <$> _modulation <*> payload_data_i <*> m1 <*> m2 <*> m3)
-
-    -- Holds the necessary amount of previous data bits for the modulation
-    -- data_i[-1]
-    m1 = register (0 :: Bit) (mux (bitToBool <$> dataWrite) payload_data_i m1)
-    -- data_i[-2]
-    m2 = register (0 :: Bit) (mux (bitToBool <$> dataWrite) m1 m2)
-    -- data_i[-3]
-    m3 = register (0 :: Bit) (mux (bitToBool <$> dataWrite) m2 m3)
+    dataSubcarrier = k_mod <$> _modulation <*> mod_data_o
 
     -- ╔═════════════════════╗
     -- ║ Frequency spreading ║
@@ -442,35 +363,38 @@ ofdm
 
     -- Counts the number of subcarrier written ("true message" and frequency spreading)
     -- Also counts the output index
-    nextSubcarrierCounter :: State -> Bit -> Unsigned 8 -> Bit -> Bit -> Bit -> Unsigned 2 -> Bit -> Unsigned 7 -> Unsigned 7
+    nextSubcarrierCounter :: State -> Bit -> Unsigned 8 -> Bit -> Bit -> Bit -> Unsigned 2 -> Bit -> Bit -> Bit -> Unsigned 3 -> Unsigned 7 -> Unsigned 7
     --                    ┌state
     --                    │    ┌cp
     --                    │    │ ┌_n_fft 
     --                    │    │ │ ┌subcarrierWrite
     --                    │    │ │ │ ┌write counter end
     --                    │    │ │ │ │ ┌slaveWrite
-    --                    │    │ │ │ │ │
-    --                    │    │ │ │ │ │   ┌read counter end
-    --                    │    │ │ │ │ │   │ ┌counter
-    -- Idle -> reset      │    │ │ │ │ │   │ │ 
-    nextSubcarrierCounter Idle _ _ _ _ _ _ _ _ = 0
-    nextSubcarrierCounter WPlt _ _ _ _ _ _ _ _ = 0 -- Do not count pilot write, skip will do it
+    --                    │    │ │ │ │ │ ┌spreadCounter
+    --                    │    │ │ │ │ │ │ ┌read counter end
+    --                    │    │ │ │ │ │ │ │ ┌writeFlagNext
+    --                    │    │ │ │ │ │ │ │ │ ┌writeFlagHere
+    --                    │    │ │ │ │ │ │ │ │ │ ┌hopCounter
+    --                    │    │ │ │ │ │ │ │ │ │ │ ┌counter
+    -- Idle -> reset      │    │ │ │ │ │ │ │ │ │ │ │
+    nextSubcarrierCounter Idle _ _ _ _ _ _ _ _ _ _ _ = 0
+    nextSubcarrierCounter WPlt _ _ _ _ _ _ _ _ _ _ _ = 0 -- Do not count pilot write, skip will do it
     -- Reading
-    nextSubcarrierCounter Outp _ _ _ _ 1 _ _ x = x + 1
-    nextSubcarrierCounter Outp _ _ _ _ 0 _ _ x = x
+    nextSubcarrierCounter Outp _ _ _ _ 1 0 _ _ 1 h x = x + (resize h)
+    nextSubcarrierCounter Outp _ _ _ _ 1 _ _ _ _ h x = x + 1
+    nextSubcarrierCounter Outp _ _ _ _ 0 _ _ _ _ _ x = x
     -- Reading (CP)
-    nextSubcarrierCounter OuCP _ _ _ _ 1 _ 1 _ = 0 -- Reset for (not CP this time)
-    nextSubcarrierCounter OuCP _ _ _ _ 1 _ _ x = x + 1
-    nextSubcarrierCounter OuCP _ _ _ _ 0 _ _ x = x
+    nextSubcarrierCounter OuCP _ _ _ _ 1 _ 1 _ _ _ _ = 0 -- Reset for (not CP this time)
+    nextSubcarrierCounter OuCP _ _ _ _ 1 0 _ _ 1 h x = x + (resize h)
+    nextSubcarrierCounter OuCP _ _ _ _ 1 _ _ _ _ h x = x + 1
+    nextSubcarrierCounter OuCP _ _ _ _ 0 _ _ _ _ _ x = x
     -- Writing
-    nextSubcarrierCounter Skip _ _ _ 0 _ _ _ x = x + 1
-    nextSubcarrierCounter _    0 _ 1 1 _ 0 _ _ = 0 -- Reset for output (CP or not)
-    nextSubcarrierCounter _    1 n 1 1 _ 0 _ _ = resize $ n `div` 4 * 3 -- Go at 3/4
-    nextSubcarrierCounter Skip 0 _ _ 1 _ 0 _ _ = 0 -- Reset for output (CP or not)
-    nextSubcarrierCounter Skip 1 n _ 1 _ 0 _ _ = resize $ n `div` 4 * 3 -- Go at 3/4
-    nextSubcarrierCounter _    _ _ 1 0 _ _ _ x = x + 1
+    nextSubcarrierCounter _    0 _ 1 1 _ 0 _ _ _ _ _ = 0 -- Reset for output (CP or not)
+    nextSubcarrierCounter _    1 n 1 1 _ 0 _ _ _ _ _ = resize $ n `div` 4 * 3 -- Go at 3/4
+    nextSubcarrierCounter _    _ _ 1 0 _ 0 _ _ 1 h x = x + (resize h)
+    nextSubcarrierCounter _    _ _ 1 0 _ _ _ _ _ h x = x + 1
     -- Default
-    nextSubcarrierCounter _    _ _ _ _ _ _ _ x = x
+    nextSubcarrierCounter _    _ _ _ _ _ _ _ _ _ _ x = x
 
     -- Output step, this is for getting a N/step sized FFT out of the 128FFT
     outputStep :: Unsigned 8 -> Unsigned 7
@@ -485,29 +409,67 @@ ofdm
       <*> slaveWrite
       <*> spreadCounter
       <*> subcarrierReadEnd
+      <*> writeFlagNext
+      <*> writeFlagHere
+      <*> hopCounter
       <*> subcarrierCounter
+
     subcarrierCounter      = register (0 :: Unsigned 7) nextSubcarrierCounter'
-    subcarrierWriteEnd     = boolToBit <$> (subcarrierCounter .==. (resize <$> _activeTones - 1))
+    subcarrierWriteEnd     = boolToBit <$> (subcarrierCounter .==. (resize <$> _dataTones - 1))
     subcarrierReadEnd      = boolToBit <$> (subcarrierCounter .==. (resize <$> (_n_fft - 1)))
     
 
-    subcarrierIndex :: State -> Unsigned 7 -> Unsigned 7 -> Unsigned 7 -> Unsigned 7 -> Unsigned 7
-    --              ┌state
-    --              │    ┌pilotIndex
-    --              │    │ ┌subcarrierWriteIndex
-    --              │    │ │ ┌counter
-    --              │    │ │ │ ┌outputStep
-    --              │    │ │ │ │
-    subcarrierIndex WPlt p _ _ _ = p
-    subcarrierIndex Outp _ _ c s = c * s
-    subcarrierIndex OuCP _ _ c s = c * s
-    subcarrierIndex _    _ i _ _ = i
+    stateIndex :: State -> Unsigned 7 -> Unsigned 7 -> Unsigned 7 -> Unsigned 7
+    --         ┌state
+    --         │    ┌subcarrierPilotIndex
+    --         │    │ ┌subcarrierReadIndex
+    --         │    │ │ ┌subcarrierWriteIndex
+    --         │    │ │ │ 
+    stateIndex WPlt x _ _ = x
+    stateIndex Outp _ x _ = x
+    stateIndex OuCP _ x _ = x
+    stateIndex _    _ _ x = x
 
-    subcarrierWriteIndex = counterToSpreadIndex <$> _frequencySpreading <*> _n_fft <*> _activeTones <*> subcarrierCounter
+    rawSubcarrierWriteIndex = counterToSpreadIndex <$> _frequencySpreading <*> _n_fft <*> _activeTones <*> subcarrierCounter
+    writeFlagHere = boolToBit <$> (testBit <$> subcarrierWriteFlags <*> (fromEnum <$> rawSubcarrierWriteIndex))
 
-    subcarrierIndex'     = subcarrierIndex <$> state <*> pilotIndex <*> subcarrierWriteIndex <*> subcarrierCounter <*> (outputStep <$> _n_fft) 
-    nextSubcarrierIndex' = subcarrierIndex <$> state <*> pilotIndex <*> (counterToSpreadIndex <$> _frequencySpreading <*> _n_fft <*> _activeTones <*> nextSubcarrierCounter') <*> subcarrierCounter <*> (outputStep <$> _n_fft)
+    nextHopCounter :: State -> Bit -> Unsigned 3 -> Unsigned 3
+    nextHopCounter WDat 1 x = x + 1
+    nextHopCounter WrSF 1 x = x + 1
+    nextHopCounter _    _ _ = 1
 
+    hopCounter = register (1 :: Unsigned 3) $ nextHopCounter
+      <$> state
+      <*> writeFlagNext
+      <*> hopCounter
+
+    subcarrierWriteIndex = mux (bitToBool <$> writeFlagHere) (rawSubcarrierWriteIndex + 1) (rawSubcarrierWriteIndex)
+    subcarrierReadIndex  = subcarrierCounter * (outputStep <$> _n_fft)
+    subcarrierPilotIndex = pilotIndex
+
+    subcarrierIndex = stateIndex
+      <$> state
+      <*> subcarrierPilotIndex
+      <*> subcarrierReadIndex
+      <*> subcarrierWriteIndex
+
+    --nextSubcarrierIndex' = subcarrierIndex <$> state <*> pilotIndex <*> (counterToSpreadIndex <$> _frequencySpreading <*> _n_fft <*> _activeTones <*> nextSubcarrierCounter') <*> subcarrierCounter <*> (outputStep <$> _n_fft)
+
+    nextSubcarrierWriteFlag :: State -> Unsigned 3 -> Bit -> Unsigned 7 -> BitVector 128 -> BitVector 128
+    -- state, pilotCounter, subcarrierWrite', subcarrierIndex
+    nextSubcarrierWriteFlag WPlt 0 _ i x = bit $ fromEnum i
+    nextSubcarrierWriteFlag _    _ 1 i x = setBit x $ fromEnum i
+    nextSubcarrierWriteFlag _    _ 0 _ x = x
+
+
+    subcarrierWriteFlags = register (0 :: BitVector 128) $ nextSubcarrierWriteFlag
+      <$> state
+      <*> pilotCounter
+      <*> subcarrierWrite'
+      <*> subcarrierIndex
+      <*> subcarrierWriteFlags
+
+    writeFlagNext = boolToBit <$> (testBit <$> subcarrierWriteFlags <*> (fromEnum <$> (subcarrierIndex + 1)))
 
     -- ╔════════╗
     -- ║ Pilots ║
@@ -561,9 +523,7 @@ ofdm
     pilotCounter = register (0 :: Unsigned 3) $ nextPilotCounter <$> state <*> pilotCounterEnd <*> pilotset_write_i <*> pilotCounter
     pilotCounterEnd = boolToBit <$> (pilotCounter .==. (resize <$> (_pilotTones - 1)))
 
-
-    --pilotHere = boolToBit <$> (testBit <$> pilotsFlags <*> (fromEnum <$> subcarrierIndex'))
-    pilotNext = boolToBit <$> (testBit <$> pilotsFlags <*> (fromEnum <$> nextSubcarrierIndex'))
+    --pilotNext = boolToBit <$> (testBit <$> pilotsFlags <*> (fromEnum <$> nextSubcarrierIndex'))
 
     -- Output the pilot position based on ofdmOption, pilotSetCounter and pilotCounter
     pilot :: OFDM_Option -> Unsigned 4 -> Unsigned 3 -> Unsigned 7
@@ -592,7 +552,7 @@ ofdm
     nextSubcarriers :: State -> Bit -> Unsigned 7 -> Subcarrier -> Unsigned 8 -> Vec 128 Subcarrier -> Vec 128 Subcarrier
     --              ┌state
     --              │    ┌subcarrierWrite'
-    --              │    │ ┌subcarrierIndex'
+    --              │    │ ┌subcarrierIndex
     --              │    │ │ ┌subcarrierValue'
     --              │    │ │ │ ┌_n_fft
     --              │    │ │ │ │ ┌subcarriers
@@ -600,16 +560,25 @@ ofdm
     -- Idle         │    │ │ │ │ │
     nextSubcarriers Init _ _ _ _ _ = repeat (0.0,0.0) :: Vec 128 Subcarrier
     -- WPlt / WDat
-    nextSubcarriers _    1 i v n x = replace (ifftshift n i) (iqConj v) x -- Apply conjugate here to help the IFFT
+    -- Apply conjugate and ifftshirt here to help the IFFT
+    nextSubcarriers _    1 i v n x = replace (ifftshift n i) (iqConj v) x
     nextSubcarriers _    _ _ _ _ x = x
 
-    subcarriers = register (repeat (0.0,0.0) :: Vec 128 Subcarrier) (nextSubcarriers
+    subcarriers = register (repeat (0.0,0.0) :: Vec 128 Subcarrier) $ nextSubcarriers
       <$> state
-      <*> (subcarrierWrite')
-      <*> (subcarrierIndex')
-      <*> (subcarrierValue')
+      <*> subcarrierWrite'
+      <*> subcarrierIndex
+      <*> subcarrierValue'
       <*> _n_fft
-      <*> subcarriers)
+      <*> subcarriers
+
+    --pilotSkipIndex = indexWithPilotSkip <$> subcarrierIndex <*> pilotHere
+
+    --pilotHere = boolToBit <$> (testBit <$> pilotsFlags <*> (fromEnum <$> subcarrierIndex))
+
+    -- indexWithPilotSkip :: Unsigned 7 -> Bit -> Unsigned 7
+    -- indexWithPilotSkip i 0 = i
+    -- indexWithPilotSkip i 1 = i + 1
 
     subcarrierValue :: State -> Unsigned 3 -> Unsigned 2 -> Unsigned 7 -> Bit -> Subcarrier -> Subcarrier -> Subcarrier
     --              ┌state

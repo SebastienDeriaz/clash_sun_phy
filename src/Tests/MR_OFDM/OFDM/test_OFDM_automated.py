@@ -19,9 +19,9 @@ from sun_phy.tools.errors import UnsupportedError
 filepath = join(dirname(__file__), './test_OFDM_automated.hs')
 
 #OFDM_Options = list(range(1,5))
-OFDM_Options = [2]
+OFDM_Options = [4]
 #MCS = list(range(7))
-MCS = [2]
+MCS = [3]
 test_options = list(product(OFDM_Options, MCS))
 
 @pytest.mark.parametrize("OFDM_Option, MCS", test_options)
@@ -38,9 +38,9 @@ def test_OFDM_automated(OFDM_Option, MCS):
     except UnsupportedError:
         return
     
-    print(mrmod.bits_per_symbol())
+    print(f"Bits per symbol : {mrmod.bits_per_symbol()}")
     np.random.seed(0)
-    message_raw = np.random.randint(0, 2, mrmod.bits_per_symbol() // 2, dtype=int)
+    message_raw = np.random.randint(0, 2, mrmod.bits_per_symbol(), dtype=int)
 
     I, Q, _ = mrmod.message_to_IQ(message_raw, binary=True)
     

@@ -47,7 +47,7 @@ data Modulation = BPSK
   deriving anyclass NFDataX
 
 -- Number of coded bits per symbol (as a function of modulation)
-nbpsc_mod :: Modulation -> Unsigned 2
+nbpsc_mod :: Modulation -> Unsigned 3
 nbpsc_mod BPSK  = 1 
 nbpsc_mod QPSK  = 2
 nbpsc_mod QAM16 = 4

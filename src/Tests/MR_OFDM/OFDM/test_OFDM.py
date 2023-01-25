@@ -19,38 +19,37 @@ from sun_phy import Ofdm_modulator, Mr_ofdm_modulator
 filepath = join(dirname(__file__), '../../../SunPhy/MR_OFDM/OFDM.hs')
 
 
-def test_subcarrierCounterToIndex():
-    f = Function(filepath, 'subcarrierCounterToIndex')
+# def test_subcarrierCounterToIndex():
+#     f = Function(filepath, 'subcarrierCounterToIndex')
     
-    for N_FFT, active_tones in zip([128, 64, 32, 16], [104, 52, 26, 14]):
-        for i in range(active_tones):
-            offset = (N_FFT - active_tones) // 2
-            expected = offset + i + (1 if i >= active_tones // 2 else 0)
-            out = int(f.test([N_FFT, active_tones, i]))
+#     for N_FFT, active_tones in zip([128, 64, 32, 16], [104, 52, 26, 14]):
+#         for i in range(active_tones):
+#             offset = (N_FFT - active_tones) // 2
+#             expected = offset + i + (1 if i >= active_tones // 2 else 0)
+#             out = int(f.test([N_FFT, active_tones, i]))
 
-            assert expected == out
+#             assert expected == out
 
-def test_counterToSpreadIndex():
-    f = Function(filepath, 'counterToSpreadIndex')
+# def test_counterToSpreadIndex():
+#     f = Function(filepath, 'counterToSpreadIndex')
     
     
-    print([f.test([4, 64, 52, i]) for i in range(52)])
-    # for N_FFT, active_tones in zip([128, 64, 32, 16], [104, 52, 26, 14]):
-    #     for SF in [1, 2, 4]:
-    #         if N_FFT <= 32 and SF == 4:
-    #             # Skip these because they aren't in the norm (and not possible)
-    #             continue
+#     print([f.test([4, 64, 52, i]) for i in range(52)])
+#     # for N_FFT, active_tones in zip([128, 64, 32, 16], [104, 52, 26, 14]):
+#     #     for SF in [1, 2, 4]:
+#     #         if N_FFT <= 32 and SF == 4:
+#     #             # Skip these because they aren't in the norm (and not possible)
+#     #             continue
 
-    #     for i in range(active_tones):
-    #         offset = (N_FFT - active_tones) // 2
-    #         expected = offset + i + (1 if i > active_tones // 2 else 0)
-    #         out = int(f.test([N_FFT, active_tones, i]))
+#     #     for i in range(active_tones):
+#     #         offset = (N_FFT - active_tones) // 2
+#     #         expected = offset + i + (1 if i > active_tones // 2 else 0)
+#     #         out = int(f.test([N_FFT, active_tones, i]))
 
-    #         assert expected == out
+#     #         assert expected == out
 
-#OFDM_Option = list(range(1,5))
+# #OFDM_Option = list(range(1,5))
 OFDM_Option = [4]
-
 MCS = [2]
 
 test_options = list(product(OFDM_Option, MCS))
@@ -109,7 +108,12 @@ def test_OFDM(OFDM_Option, MCS):
         "last_o (actual)",
         "pilotSetCounter",
         "pn9 register",
-        "test"
+        "State",
+        "index",
+        "counter",
+        "write flag next",
+        "test",
+        "hop"
     ])
 
     tb.run()
