@@ -108,12 +108,7 @@ def test_OFDM(OFDM_Option, MCS):
         "last_o (actual)",
         "pilotSetCounter",
         "pn9 register",
-        "State",
-        "index",
-        "counter",
-        "write flag next",
-        "test",
-        "hop"
+        "State"
     ])
 
     tb.run()
@@ -140,18 +135,18 @@ def test_OFDM(OFDM_Option, MCS):
 
     print(outputSignal)
 
-    # plt.figure()
-    # plt.subplot(211)
-    # plt.plot(outputTh.real)
-    # plt.plot(outputSignal.real)
-    # plt.vlines(np.arange(7)*16, -2, 2)
-    # plt.grid()
-    # plt.subplot(212)
-    # plt.plot(outputTh.imag)
-    # plt.plot(outputSignal.imag)
-    # plt.vlines(np.arange(7)*16, -2, 2)
-    # plt.grid()
-    # plt.show()
+    plt.figure()
+    plt.subplot(211)
+    plt.plot(outputTh.real)
+    plt.plot(outputSignal.real)
+    plt.vlines(np.arange(7)*16, -2, 2)
+    plt.grid()
+    plt.subplot(212)
+    plt.plot(outputTh.imag)
+    plt.plot(outputSignal.imag)
+    plt.vlines(np.arange(7)*16, -2, 2)
+    plt.grid()
+    plt.show()
     
     assert np.var(outputSignal - outputTh) < 0.001
 

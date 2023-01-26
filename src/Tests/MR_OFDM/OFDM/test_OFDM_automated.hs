@@ -17,12 +17,12 @@ testOFDMautomated
   -> Signal dom (Unsigned 4)
   -> Signal dom (BitVector 9)
   -> Signal dom Bit -- Write PN9 seed and pilot set
-  -> Signal dom (Bit, Bit, IQ, Bit, State, Bit, Unsigned 7, Bit, Bit) -- ready_o, valid_o, data_o, last_o
-testOFDMautomated ofdmOption mcs phyOFDMInterleaving inputVec start_i ready_i pilot_set pn9_seed pn9_pilot_write = bundle (ready_o, valid_o, data_o, last_o, state, psdu_ready_o * phr_valid, subcarrierCounter, subcarrierCounterEnd, pilotNext)
+  -> Signal dom (Bit, Bit, IQ, Bit, State, Unsigned 7) -- ready_o, valid_o, data_o, last_o
+testOFDMautomated ofdmOption mcs phyOFDMInterleaving inputVec start_i ready_i pilot_set pn9_seed pn9_pilot_write = bundle (ready_o, valid_o, data_o, last_o, state, subcarrierIndex)
   where
     (ready_o, phr_valid, phr_data, phr_last) = unbundle $ serializer inputVec start_i psdu_ready_o
 
-    (psdu_ready_o, valid_o, data_o, last_o, _, pn9_reg, state, subcarrierCounter, subcarrierCounterEnd, pilotNext) = unbundle $ ofdm
+    (psdu_ready_o, valid_o, data_o, last_o, _, pn9_reg, state, subcarrierIndex) = unbundle $ ofdm
       ofdmOption
       mcs
       (pure 1)

@@ -19,9 +19,9 @@ from sun_phy.tools.errors import UnsupportedError
 filepath = join(dirname(__file__), './test_OFDM_automated.hs')
 
 #OFDM_Options = list(range(1,5))
-OFDM_Options = [4]
+OFDM_Options = [2]
 #MCS = list(range(7))
-MCS = [3]
+MCS = [2]
 test_options = list(product(OFDM_Options, MCS))
 
 @pytest.mark.parametrize("OFDM_Option, MCS", test_options)
@@ -57,7 +57,7 @@ def test_OFDM_automated(OFDM_Option, MCS):
 
     message_vec = f"{':>'.join([str(int(x)) for x in message])}:>Nil"
 
-    N = int(message.size * 2.2 * FREQUENCY_SPREADING[MCS])  
+    N = int(message.size * 4.2 * FREQUENCY_SPREADING[MCS])
 
     ofdm_option = Signal("OFDM_Option", [OFDM_Option])
     mcs = Signal("MCS", [MCS])
@@ -87,10 +87,7 @@ def test_OFDM_automated(OFDM_Option, MCS):
         "data_o (actual)",
         "last_o (actual)",
         "state",
-        "data read",
-        "subcarrierCounter",
-        "subcarrierCounterEnd",
-        "pilot next"
+        "subcarrierIndex",
     ])
 
     tb.setExpectedOutputs([
@@ -103,7 +100,7 @@ def test_OFDM_automated(OFDM_Option, MCS):
     tb.run()
     cg = Chronogram()
     cg.setSignals(tb.getAllSignals())
-    cg.saveSVG(join(dirname(__file__), 'test_OFDM_automated.svg'), ticks = True)
+    cg.saveSVG(join(dirname(__file__), 'test_OFDM_automated.svg'), ticks = True, scale=1)
 
     validSignal = np.array([int(str(s.value())) for s in tb._actualOutputs["valid_o (actual)"].samples])
     rawOutputSignal = np.array([complex(*[float(x) for x in str(s)[1:-1].split(',')]) for s in tb._actualOutputs["data_o (actual)"].samples])
