@@ -1,5 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
+
 module SunPhy.MR_FSK.FSK_modulator where
 
 import Clash.Prelude
@@ -20,7 +22,7 @@ fsk_modulator ready_i valid_i data_i last_i = bundle(ready_o, valid_o, data_r_o,
     sinAngle = pure ($$(fLit (sin 1.05)) :: SFixed 2 10)
     --sinAngle = pure (1.05 :: SFixed 2 10)
 
-    data_r_o = sin <$> sinAngle
+    data_r_o = pure 0.5 -- sin <$> sinAngle
     data_i_o = pure 0.5 -- sin <$> angle
 
 

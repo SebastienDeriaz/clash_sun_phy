@@ -12,6 +12,14 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
+    clash-compiler = {
+      url = github:clash-lang/clash-compiler;
+      flake = false;
+    };
+    clash-utils = {
+      url = github:adamwalker/clash-utils;
+      flake = false;
+    };
   };
 
   outputs = inputs: inputs.flake-utils.lib.eachDefaultSystem (system:
@@ -131,6 +139,12 @@
         '';
         runtimeInputs = with pkgs; [ quartus-prime-lite ];
       };
+      haskellPackages = pkgs.haskellPackages.override {
+        overrides = self: super: with pkgs.haskell.lib; {
+          clash-utils = dontCheck (self.callCabal2nix "clash-utils" inputs.clash-utils { });
+          SunPhy = self.callCabal2nix "SunPhy" ./. { };
+        };
+      };
     in
     {
       inherit pkgs;
@@ -138,17 +152,23 @@
       packages = {
         default = build;
         inherit vhdl build flash;
+        inherit (haskellPackages) SunPhy;
       };
 
-      devShells.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [
-          quartus-prime-lite
-          (haskellPackages.ghcWithPackages (ps: with ps; [
-            clash-ghc
-            ghc-typelits-extra
-            ghc-typelits-knownnat
-            ghc-typelits-natnormalise
-          ]))
+      devShells.default = haskellPackages.shellFor {
+        packages = ps: with ps; [
+          SunPhy
+          clash-ghc
+          ghc-typelits-extra
+          ghc-typelits-knownnat
+          ghc-typelits-natnormalise
+        ];
+        nativeBuildInputs = with haskellPackages; [
+          #pkgs.quartus-prime-lite
+          cabal-install
+          clash-ghc
+          haskell-language-server
+          hpack
         ];
       };
     });

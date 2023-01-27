@@ -2,8 +2,6 @@ module SunPhy.Bypass where
 
 import Clash.Prelude
 
-
-
 nextLastEnable :: Bit -> Unsigned 2 -> Bit -> Bit
 -- lastEnable, buffer, last_i
 nextLastEnable _ 0 _ = 0

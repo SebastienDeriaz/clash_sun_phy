@@ -1,0 +1,40 @@
+name: SunPhy
+version: 0.0.0
+
+default-extensions:
+  - ApplicativeDo
+  - BinaryLiterals
+  - DataKinds
+  - DeriveAnyClass
+  - DeriveGeneric
+  - DerivingStrategies
+  - NoImplicitPrelude
+  - NumericUnderscores
+  - RankNTypes
+  - RecordWildCards
+  - ScopedTypeVariables
+  - TemplateHaskell
+  - TypeApplications
+  - TypeFamilies
+
+dependencies:
+  - QuickCheck
+  - base
+  - bytestring
+  - cassava
+  - clash-prelude
+  - clash-utils
+  - file-embed
+  - hspec
+  - text
+  - vector
+
+library:
+  source-dirs: src
+
+tests:
+  spec:
+    main: Main.hs
+    source-dirs: test
+    dependencies:
+      - SunPhy

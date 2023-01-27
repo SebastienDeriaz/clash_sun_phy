@@ -1,0 +1,116 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.7.
+--
+-- see: https://github.com/sol/hpack
+
+name:           SunPhy
+version:        0.0.0
+license:        GPL-3
+license-file:   LICENSE
+build-type:     Simple
+
+library
+  exposed-modules:
+      SunPhy.Bypass
+      SunPhy.Concat2
+      SunPhy.Concat3
+      SunPhy.Concat4
+      SunPhy.MR_FSK.FEC
+      SunPhy.MR_FSK.FEC_B
+      SunPhy.MR_FSK.FSK_modulator
+      SunPhy.MR_FSK.Interleaver
+      SunPhy.MR_FSK.MR_FSK_modulator
+      SunPhy.MR_FSK.PHR
+      SunPhy.MR_FSK.PSDU
+      SunPhy.MR_FSK.SHR
+      SunPhy.MR_OFDM.Constants
+      SunPhy.MR_OFDM.Encoder
+      SunPhy.MR_OFDM.FFT
+      SunPhy.MR_OFDM.Interleaver
+      SunPhy.MR_OFDM.LTF
+      SunPhy.MR_OFDM.LTF_constants
+      SunPhy.MR_OFDM.MR_OFDM_Modulator
+      SunPhy.MR_OFDM.OFDM
+      SunPhy.MR_OFDM.OFDM_Pilots
+      SunPhy.MR_OFDM.PHR
+      SunPhy.MR_OFDM.STF
+      SunPhy.MR_OFDM.STF_constants
+      SunPhy.PN9
+      SunPhy.Scrambler
+      SunPhy.Serializer
+      SunPhy.Settings
+      SunPhy.Splitter2
+      SunPhy.Switch2
+      SunPhy.Top
+  other-modules:
+      Paths_SunPhy
+  hs-source-dirs:
+      src
+  default-extensions:
+      ApplicativeDo
+      BinaryLiterals
+      DataKinds
+      DeriveAnyClass
+      DeriveGeneric
+      DerivingStrategies
+      NoImplicitPrelude
+      NumericUnderscores
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      TemplateHaskell
+      TypeApplications
+      TypeFamilies
+  build-depends:
+      QuickCheck
+    , base
+    , bytestring
+    , cassava
+    , clash-prelude
+    , clash-utils
+    , file-embed
+    , hspec
+    , text
+    , vector
+  default-language: Haskell2010
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      IeeeAnnexLSpec
+      MrOfdmModulatorTester
+      Parsers
+      SerializerSpec
+      Paths_SunPhy
+  hs-source-dirs:
+      test
+  default-extensions:
+      ApplicativeDo
+      BinaryLiterals
+      DataKinds
+      DeriveAnyClass
+      DeriveGeneric
+      DerivingStrategies
+      NoImplicitPrelude
+      NumericUnderscores
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      TemplateHaskell
+      TypeApplications
+      TypeFamilies
+  build-depends:
+      QuickCheck
+    , SunPhy
+    , base
+    , bytestring
+    , cassava
+    , clash-prelude
+    , clash-utils
+    , file-embed
+    , hspec
+    , text
+    , vector
+  default-language: Haskell2010

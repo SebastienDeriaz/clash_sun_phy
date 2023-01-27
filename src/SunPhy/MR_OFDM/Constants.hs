@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module SunPhy.MR_OFDM.Constants where
 
 import Clash.Prelude
@@ -7,15 +9,12 @@ frequencySpreading :: MCS -> Unsigned 3
 frequencySpreading 0 = 4
 frequencySpreading 1 = 2
 frequencySpreading 2 = 2
-frequencySpreading 3 = 1
-frequencySpreading 4 = 1
-frequencySpreading 5 = 1
-frequencySpreading 6 = 1
+frequencySpreading _ = 1
 
---data OFDM_Option = 1 | 2 | 3 | 4
+-- data OFDM_Option = 1 | 2 | 3 | 4
 type OFDM_Option = (Unsigned 3)
 
---data MCS = 0 | 1 | 2 | 3 | 4 | 5 | 6
+-- data MCS = 0 | 1 | 2 | 3 | 4 | 5 | 6
 type MCS = (Unsigned 3)
 
 -- N_bpsc as a function of MCS
@@ -26,7 +25,7 @@ nbpsc 2 = 2
 nbpsc 3 = 2
 nbpsc 4 = 2
 nbpsc 5 = 4
-nbpsc 6 = 4
+nbpsc _ = 4
 
 -- N_FFT as a function of OFDM option
 n_fft :: OFDM_Option -> Unsigned 8
@@ -39,17 +38,17 @@ type MFixed = SFixed 16 16
 type IQ = (MFixed, MFixed)
 type Subcarrier = (MFixed, MFixed)
 
-
-data Modulation = BPSK
-                | QPSK
-                | QAM16
+data Modulation
+  = BPSK
+  | QPSK
+  | QAM16
   deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
-  deriving anyclass NFDataX
+  deriving anyclass (NFDataX)
 
 -- Number of coded bits per symbol (as a function of modulation)
 nbpsc_mod :: Modulation -> Unsigned 2
-nbpsc_mod BPSK  = 1 
-nbpsc_mod QPSK  = 2
+nbpsc_mod BPSK = 1
+nbpsc_mod QPSK = 2
 nbpsc_mod QAM16 = 4
 
 mcsModulation :: MCS -> Modulation
@@ -60,7 +59,6 @@ mcsModulation 3 = QPSK
 mcsModulation 4 = QPSK
 mcsModulation 5 = QAM16
 mcsModulation 6 = QAM16
-
 
 pilotTones :: OFDM_Option -> Unsigned 8
 pilotTones 1 = 8
