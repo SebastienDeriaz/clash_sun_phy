@@ -119,3 +119,10 @@ phrNSymbols _ 1 = 6
 n_cbps :: OFDM_Option -> MCS -> Bit -> Unsigned 8
 n_cbps o m 0 = (resize $ n_fft o) `div` 4 * (resize $ nbpsc m) `div` (resize $ frequencySpreading m) * 3
 n_cbps o m 1 = (resize $ n_fft o) `div` 4 * (resize $ nbpsc m) * 3
+
+n_dbps :: OFDM_Option -> MCS -> Bit -> Unsigned 9
+n_dbps o m p = resize $ n_cbps o m p `div` 4 * r
+  where
+    r = if (rate m == 0) then 2 else 3
+      
+

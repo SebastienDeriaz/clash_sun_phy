@@ -110,7 +110,7 @@ mrOfdmModulator
                         psdu_ofdm_ready_i
 
             -- PHR
-            phrLength = (resize <$> (n_cbps <$> ofdmOption <*> lowest_mcs <*> phyOFDMInterleaving)) * (resize <$> (phrNSymbols <$> ofdmOption <*> phyOFDMInterleaving))
+            phrLength = (resize <$> (n_dbps <$> ofdmOption <*> lowest_mcs <*> phyOFDMInterleaving)) * (resize <$> (phrNSymbols <$> ofdmOption <*> phyOFDMInterleaving))
             -- 1) Generation
             (phr_valid_o, phr_data_o, phr_last_o, counter) = unbundle $ phr mcs psdu_length scrambler_seed phrLength phr_ready_i start_i
             -- 2) Encoder
