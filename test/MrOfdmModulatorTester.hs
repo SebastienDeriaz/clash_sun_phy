@@ -1,52 +1,73 @@
 {-# LANGUAGE DuplicateRecordFields #-}
--- {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module MrOfdmModulatorTester where
 
 import Clash.Prelude
 
--- (serializer, SerializerInput, SerializerOutput)
-
 import Data.Functor ((<&>))
+import GHC.RTS.Flags (DebugFlags (DebugFlags))
 import SunPhy.MR_OFDM.Constants
 import SunPhy.MR_OFDM.MR_OFDM_Modulator
+import SunPhy.Parallelizer
 import SunPhy.Serializer
 
-data MrOfdmModulatorTesterInput n a = MrOfdmModulatorTesterInput
+data MrOfdmModulatorTesterInput n = MrOfdmModulatorTesterInput
     { ofdmOption :: OFDM_Option
     , mcs :: MCS
     , phyOFDMInterleaving :: Bit
-    , data_i :: Vec n Bit
-    , start_i :: Bit
-    , ready_i :: Bit
+    , _data :: Vec n Bit
+    , start :: Bit
+    , ready :: Bit
     }
     deriving stock (Generic, Show, Eq)
     deriving anyclass (NFDataX)
 
-data MrOfdmModulatorTesterOutput a = MrOfdmModulatorTesterOutput
-    { data_o :: IQ
-    , ready_o :: Bit
-    , valid_o :: Bit
-    , last_o :: Bit
+data MrOfdmModulatorTesterOutput m = MrOfdmModulatorTesterOutput
+    { _data :: Vec m IQ
+    , valid :: Bit
+    , ready :: Bit
+    , -- Debug
+      psdu_ready :: Bit
+    , psdu_valid :: Bit
+    , ofdm_valid :: Bit
+    , ofdm_ready :: Bit
+    , phr_encoder_ready_i :: Bit
+    , phr_encoder_valid_o :: Bit
+    , phr_interleaver_ready_i :: Bit
+    , phr_interleaver_valid_o :: Bit
+    , phr_ofdm_ready_i :: Bit
+    , phr_ofdm_valid_o :: Bit
+    , phr_ofdm_write :: Bit
     }
-    deriving stock (Generic, Show)
+    deriving stock (Generic, Show, Eq)
     deriving anyclass (NFDataX)
 
 mrOfdmModulatorTester
-    :: forall a n dom
+    :: forall n m dom
      . HiddenClockResetEnable dom
     => KnownNat n
-    => NFDataX a
-    => Signal dom (MrOfdmModulatorTesterInput n a)
-    -> Signal dom (MrOfdmModulatorTesterOutput a)
+    => KnownNat m
+    => Signal dom (MrOfdmModulatorTesterInput n)
+    -> Signal dom (MrOfdmModulatorTesterOutput m)
 mrOfdmModulatorTester input = do
-    ready_o <- outputReady <$> serializerOutput
-    valid_o <- valid_o
-    data_o <- data_o
-    last_o <- last_o
+    ready <- serializerOutput <&> (.ready)
+    valid <- parallelizerOutput <&> (.valid)
+    _data <- parallelizerOutput <&> (._data)
+    psdu_ready <- serializerInput <&> (.ready)
+    psdu_valid <- serializerOutput <&> (.valid)
+    ofdm_valid <- valid_o
+    ofdm_ready <- parallelizerOutput <&> (.ready)
+    phr_encoder_ready_i <- phr_encoder_ready_i
+    phr_encoder_valid_o <- phr_encoder_valid_o
+    phr_interleaver_ready_i <- phr_interleaver_ready_i
+    phr_interleaver_valid_o <- phr_interleaver_valid_o
+    phr_ofdm_ready_i <- phr_ofdm_ready_i
+    phr_ofdm_valid_o <- phr_ofdm_valid_o
+    phr_ofdm_write <- phr_ofdm_write
     pure $ MrOfdmModulatorTesterOutput {..}
     where
         serializerInput :: Signal dom (SerializerInput n Bit)
@@ -54,26 +75,46 @@ mrOfdmModulatorTester input = do
             bundle (input, psdu_ready_o)
                 <&> \(input, psdu_ready_o) ->
                     SerializerInput
-                        { inputData = data_i input
-                        , inputStart = start_i input
-                        , inputReady = psdu_ready_o
+                        { _data = input._data
+                        , start = input.start
+                        , ready = psdu_ready_o
                         }
 
         serializerOutput :: Signal dom (SerializerOutput Bit)
-        serializerOutput = serializer serializerInput -- isn't this neat?
-        -- this is yes
-        psdu_length :: Signal dom (Unsigned 11)
-        psdu_length = fromIntegral <$> ((div 8) <$> (length <$> (data_i <$> input)))
+        serializerOutput = serializer serializerInput
 
-        (psdu_ready_o, valid_o, data_o, last_o) =
-            unbundle $
-                mrOfdmModulator
-                    (ofdmOption <$> input)
-                    (mcs <$> input)
-                    (phyOFDMInterleaving <$> input)
-                    (ready_i <$> input)
-                    (start_i <$> input)
-                    (outputValid <$> serializerOutput) -- psdu_valid_o
-                    (outputData <$> serializerOutput) -- psdu_data_o
-                    (outputLast <$> serializerOutput) -- psdu_last_o
-                    psdu_length
+        (psdu_ready_o
+            , valid_o
+            , data_o
+            , last_o
+            , phr_encoder_ready_i
+            , phr_encoder_valid_o
+            , phr_interleaver_ready_i
+            , phr_interleaver_valid_o
+            , phr_ofdm_ready_i
+            , phr_ofdm_valid_o
+            , phr_ofdm_write) =
+                unbundle $
+                    mrOfdmModulator
+                        (ofdmOption <$> input)
+                        (mcs <$> input)
+                        (phyOFDMInterleaving <$> input)
+                        (parallelizerOutput <&> (.ready))
+                        (input <&> (.start))
+                        (serializerOutput <&> (.valid))
+                        (serializerOutput <&> (._data))
+                        (serializerOutput <&> (.last))
+                        (fromIntegral <$> ((div 8) <$> (length <$> (input <&> (._data)))))
+
+        parallelizerInput :: Signal dom (ParallelizerInput IQ)
+        parallelizerInput =
+            bundle (input, valid_o, data_o, last_o)
+                <&> \(input, valid_o, data_o, last_o) ->
+                    ParallelizerInput
+                        { ready = input.ready
+                        , valid = valid_o
+                        , _data = data_o
+                        , last = last_o
+                        }
+        parallelizerOutput :: Signal dom (ParallelizerOutput m IQ)
+        parallelizerOutput = parallelizer parallelizerInput

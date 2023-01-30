@@ -3,6 +3,8 @@
 module SunPhy.MR_OFDM.Constants where
 
 import Clash.Prelude
+--import Data.Complex
+import Clash.DSP.Complex
 
 -- SF as a function of MCS
 frequencySpreading :: MCS -> Unsigned 3
@@ -35,8 +37,8 @@ n_fft 3 = 32
 n_fft 4 = 16
 
 type MFixed = SFixed 16 16
-type IQ = (MFixed, MFixed)
-type Subcarrier = (MFixed, MFixed)
+type IQ = Complex MFixed
+type Subcarrier = Complex MFixed
 
 data Modulation
   = BPSK
@@ -78,14 +80,14 @@ dataTones 2 = 48
 dataTones 3 = 24
 dataTones 4 = 12
 
-kModBPSK :: MFixed
-kModBPSK = 1.0
+kModBPSK :: Complex MFixed
+kModBPSK = 1.0 :+ 0.0
 
-kModQPSK :: MFixed
-kModQPSK = $$(fLit (1 / sqrt 2))
+kModQPSK :: Complex MFixed
+kModQPSK = $$(fLit (1 / sqrt 2)) :+ 0.0
 
-kModQAM16 :: MFixed
-kModQAM16 = $$(fLit (1 / sqrt 10))
+kModQAM16 :: Complex MFixed
+kModQAM16 = $$(fLit (1 / sqrt 10)) :+ 0.0
 
 lowestMCS :: OFDM_Option -> MCS
 lowestMCS 1 = 0

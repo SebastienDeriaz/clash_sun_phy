@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.7.
+-- This file has been generated from package.yaml by hpack version 0.35.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -36,13 +36,13 @@ library
       SunPhy.MR_OFDM.PHR
       SunPhy.MR_OFDM.STF
       SunPhy.MR_OFDM.STF_constants
+      SunPhy.Parallelizer
       SunPhy.PN9
       SunPhy.Scrambler
       SunPhy.Serializer
       SunPhy.Settings
       SunPhy.Splitter2
       SunPhy.Switch2
-      SunPhy.Top
   other-modules:
       Paths_SunPhy
   hs-source-dirs:
@@ -79,7 +79,8 @@ test-suite spec
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
-      IeeeAnnexLSpec
+      CsvData
+      MrOfdmModulatorSpec
       MrOfdmModulatorTester
       Parsers
       SerializerSpec
@@ -112,5 +113,6 @@ test-suite spec
     , file-embed
     , hspec
     , text
+    , vcd
     , vector
   default-language: Haskell2010

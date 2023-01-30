@@ -4,8 +4,8 @@
 
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-22.11";
-    #nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    #nixpkgs.url = "github:nixos/nixpkgs/nixos-22.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
     flake-compat = {
@@ -106,7 +106,7 @@
           mkdir -p $out
           # Go the to the output directory and build everything there
           cd $out
-          
+
           # Copy all of the files, without the nix hash at the beginning
           # and without mode and ownership preservation (to allow deletion later)
           for s in $srcs; do
@@ -141,9 +141,19 @@
       };
       haskellPackages = pkgs.haskellPackages.override {
         overrides = self: super: with pkgs.haskell.lib; {
-          clash-utils = dontCheck (self.callCabal2nix "clash-utils" inputs.clash-utils { });
+          clash-utils = dontCheck (doJailbreak (self.callCabal2nix "clash-utils" inputs.clash-utils { }));
           SunPhy = self.callCabal2nix "SunPhy" ./. { };
-        };
+          concurrent-supply = doJailbreak (markUnbroken super.concurrent-supply);
+        } // builtins.foldl' (acc: name: acc // { "${name}" = self.callCabal2nix name "${inputs.clash-compiler}/${name}" { }; }) { }
+          [
+            "clash-ffi"
+            "clash-ghc"
+            "clash-lib"
+            "clash-lib-hedgehog"
+            "clash-prelude"
+            "clash-prelude-hedgehog"
+            "clash-cores"
+          ];
       };
     in
     {
@@ -165,6 +175,7 @@
         ];
         nativeBuildInputs = with haskellPackages; [
           #pkgs.quartus-prime-lite
+          pkgs.gtkwave
           cabal-install
           clash-ghc
           haskell-language-server

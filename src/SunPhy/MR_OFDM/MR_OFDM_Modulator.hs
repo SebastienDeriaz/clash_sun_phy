@@ -24,7 +24,7 @@ mrOfdmModulator
     -> Signal dom Bit -- psdu_data_i
     -> Signal dom Bit -- psdu_last_o
     -> Signal dom (Unsigned 11) -- psdu_length (octets)
-    -> Signal dom (Bit, Bit, IQ, Bit) -- PSDU, output, psdu_ready_o
+    -> Signal dom (Bit, Bit, IQ, Bit, Bit, Bit, Bit, Bit, Bit, Bit, Bit) -- PSDU, output, psdu_ready_o
 mrOfdmModulator
     -- Inputs
     ofdmOption
@@ -42,6 +42,13 @@ mrOfdmModulator
             , valid_o
             , data_o
             , last_o
+            , phr_encoder_ready_i
+            , phr_encoder_valid_o
+            , phr_interleaver_ready_i
+            , phr_interleaver_valid_o
+            , phr_ofdm_ready_i
+            , phr_ofdm_valid_o
+            , phr_interleaver_ready_i * phr_interleaver_valid_o
             )
         where
             -- Set scrambler seeds (See table 158 802.15.4g)

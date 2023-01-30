@@ -38,3 +38,4 @@ tests:
     source-dirs: test
     dependencies:
       - SunPhy
+      - vcd

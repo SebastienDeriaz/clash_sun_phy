@@ -19,12 +19,12 @@ inputs = i <$> [0 ..]
     where
         i n =
             SerializerInput
-                { inputData = 5 :> 6 :> 7 :> 8 :> Nil
-                , inputStart = inputStart n
-                , inputReady = 1
+                { _data = 5 :> 6 :> 7 :> 8 :> Nil
+                , start = start n
+                , ready = 1
                 }
-        inputStart 0 = 1
-        inputStart _ = 0
+        start 0 = 1
+        start _ = 0
 
 outputs :: [Output]
 outputs = o <$> [0 ..]
@@ -32,17 +32,17 @@ outputs = o <$> [0 ..]
         o n
             | n > 0 && n < 5 =
                 SerializerOutput
-                    { outputData = n - 1 + 5
-                    , outputReady = 0
-                    , outputValid = 1
-                    , outputLast = boolToBit (n == 4)
+                    { _data = n - 1 + 5
+                    , ready = 0
+                    , valid = 1
+                    , last = boolToBit (n == 4)
                     }
             | otherwise =
                 SerializerOutput
-                    { outputData = 0
-                    , outputReady = 1
-                    , outputValid = 0
-                    , outputLast = 0
+                    { _data = 0
+                    , ready = 1
+                    , valid = 0
+                    , last = 0
                     }
 
 firstNShouldBe :: (Eq a, Show a) => Int -> [a] -> [a] -> Expectation

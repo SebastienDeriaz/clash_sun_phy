@@ -167,7 +167,7 @@ ofdm
     --      │    │ │
     dataOut OuCP v i = v !! i
     dataOut Outp v i = v !! i
-    dataOut _ _ _ = (0, 0)
+    dataOut _    _ _ = 0 :+ 0
 
     data_o = dataOut <$> state <*> fftOutput <*> subcarrierIndex'
 
@@ -349,20 +349,20 @@ ofdm
     --         │          │ │ ┌m[-2]
     --         │          │ │ │ ┌m[-3]
     -- BPSK    │          │ │ │ │
-    applyModulation BPSK a _ _ _ = (singleBPSK a, 0.0)
+    applyModulation BPSK a _ _ _ = (singleBPSK a) :+ 0.0
     -- QPSK
     -- 00 -> -1-1j
     -- 01 -> -1+1j
     -- 10 -> +1-1j
     -- 11 -> +1+1j
-    applyModulation QPSK a b _ _ = (singleBPSK b, singleBPSK a)
+    applyModulation QPSK a b _ _ = singleBPSK b :+ singleBPSK a
     -- QAM16
-    applyModulation QAM16 a b c d = ((2.0 - (singleBPSK c)) * (singleBPSK d), (2.0 - (singleBPSK a)) * (singleBPSK b))
+    applyModulation QAM16 a b c d = ((2.0 - (singleBPSK c)) * (singleBPSK d)) :+ ((2.0 - (singleBPSK a)) * (singleBPSK b))
 
     k_mod :: Modulation -> Subcarrier -> Subcarrier
     k_mod BPSK x = x
-    k_mod QPSK (a, b) = (a * kModQPSK, b * kModQPSK)
-    k_mod QAM16 (a, b) = (a * kModQAM16, b * kModQAM16)
+    k_mod QPSK x = x * kModQPSK
+    k_mod QAM16 x = x * kModQAM16
 
     dataSubcarrier = k_mod <$> _modulation <*> (applyModulation <$> _modulation <*> payload_data_i <*> m1 <*> m2 <*> m3)
 
@@ -388,7 +388,7 @@ ofdm
     --                      │    │ │ │
     nextDataSubcarrierStore WDat 1 n _ = n -- new
     nextDataSubcarrierStore _ _ _ o = o -- old
-    dataSubcarrierStore = register ((0.0, 0.0) :: Subcarrier) (nextDataSubcarrierStore <$> state <*> dataWrite <*> dataSubcarrier <*> dataSubcarrierStore)
+    dataSubcarrierStore = register (0) (nextDataSubcarrierStore <$> state <*> dataWrite <*> dataSubcarrier <*> dataSubcarrierStore)
 
     -- Frequency spread counter
     nextSpreadCounter :: State -> Unsigned 3 -> Bit -> Unsigned 2 -> Unsigned 2
@@ -404,12 +404,12 @@ ofdm
     -- 1x, no change
     sfPhase 1 _ _ x = x
     -- 2x, * np.exp(1j*2*np.pi*(2*k-1)/4)
-    sfPhase 2 1 _ x = (fst x, snd x)
+    sfPhase 2 1 _ x = x -- TODO : Check this
     sfPhase 2 0 d x
       -- \*(-1j) (second, fourth, ...)
-      | even k = (snd x, -fst x)
+      | even k = x * (0.0 :+ (-1.0)) -- (snd x, -fst x)
       -- \*(+1j) (first, third, ...)
-      | otherwise = (-snd x, fst x)
+      | otherwise = x * (0.0 :+ 1.0) --(-snd x, fst x)
      where
       -- k is dataCounter + 1 because the tone index start at 1. See 18.2.3.6.1 of 802.15.4g-2012
       k = d + 1
@@ -593,14 +593,14 @@ ofdm
     --              │    │ │ │ │ ┌subcarriers
     --              │    │ │ │ │ │
     -- Idle         │    │ │ │ │ │
-    nextSubcarriers Init _ _ _ _ _ = repeat (0.0, 0.0) :: Vec 128 Subcarrier
+    nextSubcarriers Init _ _ _ _ _ = repeat (0) :: Vec 128 Subcarrier
     -- WPlt / WDat
     nextSubcarriers _ 1 i v n x = replace (ifftshift n i) v x
     nextSubcarriers _ _ _ _ _ x = x
 
     subcarriers =
       register
-        (repeat (0.0, 0.0) :: Vec 128 Subcarrier)
+        (repeat (0) :: Vec 128 Subcarrier)
         ( nextSubcarriers
             <$> state
             <*> (subcarrierWrite')
@@ -615,27 +615,22 @@ ofdm
     --              ┌state
     --              │            ┌pilot value
     --              │            │ ┌modData
-    --              │            │ │
-    --              │            │ │
-    --              │            │ │
-    -- Idle         │            │ │
-    subcarrierValue Idle _ _ _ _ _ = (0.0, 0.0)
-    -- WPlt
-    subcarrierValue WPlt _ _ _ 0 _ = (-1.0, 0.0)
-    subcarrierValue WPlt _ _ _ 1 _ = (1.0, 0.0)
+    -- WPlt         │            │ │
+    subcarrierValue WPlt _ _ _ 0 _ = -1.0 :+ 0.0
+    subcarrierValue WPlt _ _ _ 1 _ = 1.0 :+ 0.0
     -- WDat
     subcarrierValue WDat sf sc k _ x = sfPhase sf sc k x
     subcarrierValue WrSF sf sc k _ x = sfPhase sf sc k x
-    subcarrierValue _ _ _ _ _ _ = (0.0, 0.0)
+    subcarrierValue _ _ _ _ _ _ = 0.0 :+ 0.0
 
     -- Conjugate of an IQ pair, this is to calculate the IFFT with an FFT (IFFT chapter)
-    iqConj :: IQ -> IQ
-    iqConj (a, b) = (a, -b)
+    --iqConj :: IQ -> IQ
+    --iqConj (a, b) = (a, -b)
 
     -- spreadCounter, index, old carrier, new carrier
     -- Value to put in the subcarriers
     subcarrierValue' =
-      iqConj
+      conjugate
         <$> ( subcarrierValue
                 <$> state
                 <*> _frequencySpreading
@@ -654,10 +649,12 @@ ofdm
     -- ╚══════╝
 
     toCplx :: IQ -> Complex MFixed
-    toCplx (a, b) = a :+ b
+    --toCplx (a, b) = a :+ b
+    toCplx x = x
 
     fromCplx :: Complex MFixed -> IQ
-    fromCplx (a :+ b) = (a, b)
+    --fromCplx (a :+ b) = (a, b)
+    fromCplx x = x
 
     twiddles :: Vec 64 (Complex MFixed)
     twiddles = $(listToVecTH (twiddleFactors 64))
@@ -676,7 +673,7 @@ ofdm
     (<$$>) = fmap . fmap
 
     ifftScale :: Unsigned 8 -> IQ -> IQ
-    ifftScale nfft (a, b) = (a `shiftR` s, b `shiftR` s)
+    ifftScale nfft (a :+ b) = (a `shiftR` s) :+ (b `shiftR` s)
      where
       s = case nfft of
         128 -> 5 -- TODO : Check the values
@@ -692,7 +689,7 @@ ofdm
     fftOutputConj = fftDITIter128 twiddles <$> (toCplxVec <$> subcarriers)
 
     rawFftOutput :: Signal dom (Vec 128 IQ)
-    rawFftOutput = iqConj <$$> (fromCplxVec <$> fftOutputConj)
+    rawFftOutput = conjugate <$$> (fromCplxVec <$> fftOutputConj)
 
     fftOutput :: Signal dom (Vec 128 (IQ))
     fftOutput = scaleIfft <$> _n_fft <*> rawFftOutput

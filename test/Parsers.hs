@@ -30,3 +30,8 @@ instance FromNamedRecord ComplexSample where
         imag <- r .: "Imaginary"
         let value = real :+ imag
         pure $ ComplexSample {..}
+
+hexOctetToBits :: HexOctetSample -> [Bit]
+hexOctetToBits _ = [0, 0, 0, 0, 0, 0, 0, 0]
+
+

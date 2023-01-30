@@ -12,10 +12,10 @@ SCRAMBLER = list(range(4))
 DESTINATION = 'test/sun_phy_testcases'
 
 def message_file_format(mcs, ofdm_option, phyOFDMInterleaving, scrambler, extension):
-    return join(DESTINATION, f"message_{mcs}_{ofdm_option}_{phyOFDMInterleaving}_{scrambler}.{extension}")
+    return join(DESTINATION, f"message_{mcs}_{ofdm_option}_{phyOFDMInterleaving}_{scrambler}{extension}")
 
 def iq_file_format(mcs, ofdm_option, phyOFDMInterleaving, scrambler, extension):
-    return join(DESTINATION, f"iq_{mcs}_{ofdm_option}_{phyOFDMInterleaving}_{scrambler}.{extension}")
+    return join(DESTINATION, f"iq_{mcs}_{ofdm_option}_{phyOFDMInterleaving}_{scrambler}{extension}")
 
 def main():
     for ofdm_option, mcs, phyOFDMInterleaving, scrambler in product(OFDM_OPTIONS, MCS, PHYOFDMINTERLEAVING, SCRAMBLER):

@@ -1,12 +1,9 @@
 {-# LANGUAGE ApplicativeDo #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module SunPhy.Serializer where
-    --(serializer,
-    --SerializerInput,
-    --SerializerOutput)
-    --where 
 
 import Clash.Prelude
 import Data.Functor ((<&>))
@@ -20,28 +17,28 @@ data State
     deriving anyclass (NFDataX)
 
 data SerializerInput n a = SerializerInput
-    { inputData :: Vec n a
-    , inputStart :: Bit
-    , inputReady :: Bit
+    { _data :: Vec n a
+    , start :: Bit
+    , ready :: Bit
     }
     deriving stock (Generic, Show, Eq)
     deriving anyclass (NFDataX)
 
 data SerializerOutput a = SerializerOutput
-    { outputData :: a
-    , outputReady :: Bit
-    , outputValid :: Bit
-    , outputLast :: Bit
+    { _data :: a
+    , ready :: Bit
+    , valid :: Bit
+    , last :: Bit
     }
     deriving stock (Generic, Show)
     deriving anyclass (NFDataX)
 
 instance Eq a => Eq (SerializerOutput a) where
     o1 == o2 =
-        (outputReady o1 == outputReady o2)
-            && (outputValid o1 == outputValid o2)
-            && (outputLast o1 == outputLast o2)
-            && (outputValid o1 == 0 || outputData o1 == outputData o2)
+        (o1.ready == o2.ready)
+            && (o1.valid == o2.valid)
+            && (o1.last == o2.last)
+            && (o1.valid == 0 || o1._data == o2._data)
 
 serializer
     :: forall a n dom
@@ -51,25 +48,25 @@ serializer
     => Signal dom (SerializerInput n a)
     -> Signal dom (SerializerOutput a)
 serializer input = do
-    outputReady <- boolToBit <$> (state .==. pure Idle)
-    outputValid <- outputValid
-    outputData <- (!!) <$> (inputData <$> input) <*> bitCounter
-    outputLast <- boolToBit <$> (state .==. pure Running .&&. bitCounterEnd .==. 1)
+    ready <- boolToBit <$> (state .==. pure Idle)
+    valid <- outputValid
+    _data <- (!!) <$> (input <&> (._data)) <*> bitCounter
+    last <- boolToBit <$> (state .==. pure Running .&&. bitCounterEnd .==. 1)
     pure $ SerializerOutput {..}
     where
         state =
             register Idle $
                 nextState
                     <$> state
-                    <*> (inputStart <$> input)
+                    <*> (input <&> (.start))
                     <*> slaveWrite
                     <*> bitCounterEnd
 
         outputValid = boolToBit <$> (state .==. pure Running)
 
-        slaveWrite = outputValid * (inputReady <$> input)
+        slaveWrite = outputValid * (input <&> (.ready))
 
-        len = length <$> (inputData <$> input)
+        len = length <$> (input <&> (._data))
 
         bitCounter :: Signal dom (Index n)
         bitCounter = register (0 :: Index n) (nextBitCounter <$> state <*> slaveWrite <*> bitCounterEnd <*> bitCounter)
@@ -83,9 +80,9 @@ nextState :: State -> Bit -> Bit -> Bit -> State
 --        │       │ ┌slaveWrite
 --        │       │ │ ┌bitCounterEnd
 --        │       │ │ │
-nextState Idle 1 _ _ = Running
+nextState Idle    1 _ _ = Running
 nextState Running _ 1 1 = Idle
-nextState x _ _ _ = x
+nextState x       _ _ _ = x
 
 nextBitCounter :: KnownNat n => State -> Bit -> Bit -> Index n -> Index n
 --             ┌state

@@ -70,9 +70,9 @@ stf ofdmOption ready_i valid_i = bundle(valid_o, data_o, last_o)
 
 
     dataFlip :: Unsigned 3 -> Subcarrier -> Unsigned 8 -> Unsigned 2 -> Subcarrier
-    dataFlip o (a,b) i 3
-      | i >= resize (stfLength o) `div` 5 * 3 = (-a,-b)
-      | otherwise = (a,b)
+    dataFlip o x i 3
+      | i >= resize (stfLength o) `div` 5 * 3 = -x
+      | otherwise = x
     dataFlip _ x _ _ = x
 
     data_o = dataFlip <$> ofdmOption <*> (dataOut <$> ofdmOption <*> bitCounter) <*> bitCounter <*> symbolCounter
