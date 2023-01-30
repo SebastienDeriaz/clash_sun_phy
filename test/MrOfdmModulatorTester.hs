@@ -30,18 +30,14 @@ data MrOfdmModulatorTesterOutput m = MrOfdmModulatorTesterOutput
     { _data :: Vec m IQ
     , valid :: Bit
     , ready :: Bit
-    , -- Debug
-      psdu_ready :: Bit
-    , psdu_valid :: Bit
-    , ofdm_valid :: Bit
-    , ofdm_ready :: Bit
-    , phr_encoder_ready_i :: Bit
-    , phr_encoder_valid_o :: Bit
-    , phr_interleaver_ready_i :: Bit
-    , phr_interleaver_valid_o :: Bit
+    -- Debug
     , phr_ofdm_ready_i :: Bit
     , phr_ofdm_valid_o :: Bit
-    , phr_ofdm_write :: Bit
+    , psdu_ofdm_ready_i :: Bit
+    , psdu_ofdm_valid_o :: Bit
+    , phr_interleaver_ready_i :: Bit
+    , phr_interleaver_valid_o :: Bit
+    , ofdmMasterWriteCounter :: Unsigned 10
     }
     deriving stock (Generic, Show, Eq)
     deriving anyclass (NFDataX)
@@ -57,17 +53,14 @@ mrOfdmModulatorTester input = do
     ready <- serializerOutput <&> (.ready)
     valid <- parallelizerOutput <&> (.valid)
     _data <- parallelizerOutput <&> (._data)
-    psdu_ready <- serializerInput <&> (.ready)
-    psdu_valid <- serializerOutput <&> (.valid)
-    ofdm_valid <- valid_o
-    ofdm_ready <- parallelizerOutput <&> (.ready)
-    phr_encoder_ready_i <- phr_encoder_ready_i
-    phr_encoder_valid_o <- phr_encoder_valid_o
-    phr_interleaver_ready_i <- phr_interleaver_ready_i
-    phr_interleaver_valid_o <- phr_interleaver_valid_o
+    -- debug
     phr_ofdm_ready_i <- phr_ofdm_ready_i
     phr_ofdm_valid_o <- phr_ofdm_valid_o
-    phr_ofdm_write <- phr_ofdm_write
+    psdu_ofdm_ready_i <- psdu_ofdm_ready_i
+    psdu_ofdm_valid_o <- psdu_ofdm_valid_o
+    phr_interleaver_ready_i <- phr_interleaver_ready_i
+    phr_interleaver_valid_o <- phr_interleaver_valid_o
+    ofdmMasterWriteCounter <- ofdmMasterWriteCounter
     pure $ MrOfdmModulatorTesterOutput {..}
     where
         serializerInput :: Signal dom (SerializerInput n Bit)
@@ -87,13 +80,15 @@ mrOfdmModulatorTester input = do
             , valid_o
             , data_o
             , last_o
-            , phr_encoder_ready_i
-            , phr_encoder_valid_o
-            , phr_interleaver_ready_i
-            , phr_interleaver_valid_o
+            -- debug
             , phr_ofdm_ready_i
             , phr_ofdm_valid_o
-            , phr_ofdm_write) =
+            , psdu_ofdm_ready_i
+            , psdu_ofdm_valid_o
+            , phr_interleaver_ready_i
+            , phr_interleaver_valid_o
+            , ofdmMasterWriteCounter
+            ) =
                 unbundle $
                     mrOfdmModulator
                         (ofdmOption <$> input)

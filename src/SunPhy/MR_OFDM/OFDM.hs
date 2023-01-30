@@ -110,7 +110,7 @@ ofdm ::
   Signal dom (BitVector 9) -> -- pn9seed_data_i (pn9 starting seed)
   Signal dom Bit -> -- pn9seed_write_i
   Signal dom Bit -> -- ready_i
-  Signal dom (Bit, Bit, IQ, Bit, Unsigned 4, BitVector 9)
+  Signal dom (Bit, Bit, IQ, Bit, Unsigned 4, BitVector 9, Unsigned 10)
 ofdm
   -- Inputs
   ofdmOption
@@ -132,6 +132,7 @@ ofdm
       , last_o
       , pilotSetCounter
       , pn9_reg
+      , masterWriteCounter
       )
    where
     state_num :: State -> Unsigned 4
@@ -146,6 +147,13 @@ ofdm
     state_num OuCP = 9
 
     _n_fft = n_fft <$> ofdmOption
+
+    masterWrite = payload_valid_i * data_ready_o
+
+    masterWriteCounter = register (0 :: Unsigned 10) $ mux
+      (bitToBool <$> masterWrite)
+      (masterWriteCounter + 1)
+      (masterWriteCounter)
 
     -- ╔══════════════════════════════╗
     -- ║ Outputs and output functions ║

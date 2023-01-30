@@ -24,7 +24,7 @@ mrOfdmModulator
     -> Signal dom Bit -- psdu_data_i
     -> Signal dom Bit -- psdu_last_o
     -> Signal dom (Unsigned 11) -- psdu_length (octets)
-    -> Signal dom (Bit, Bit, IQ, Bit, Bit, Bit, Bit, Bit, Bit, Bit, Bit) -- PSDU, output, psdu_ready_o
+    -> Signal dom (Bit, Bit, IQ, Bit, Bit, Bit, Bit, Bit, Bit, Bit, Unsigned 10) -- PSDU, output, psdu_ready_o
 mrOfdmModulator
     -- Inputs
     ofdmOption
@@ -42,13 +42,13 @@ mrOfdmModulator
             , valid_o
             , data_o
             , last_o
-            , phr_encoder_ready_i
-            , phr_encoder_valid_o
-            , phr_interleaver_ready_i
-            , phr_interleaver_valid_o
             , phr_ofdm_ready_i
             , phr_ofdm_valid_o
-            , phr_interleaver_ready_i * phr_interleaver_valid_o
+            , psdu_ofdm_ready_i
+            , psdu_ofdm_valid_o
+            , phr_interleaver_ready_i
+            , phr_interleaver_valid_o
+            , ofdmMasterWriteCounter
             )
         where
             -- Set scrambler seeds (See table 158 802.15.4g)
@@ -58,7 +58,6 @@ mrOfdmModulator
             scrambler_seed = pure 0
 
             lowest_mcs = lowestMCS <$> ofdmOption
-            lowest_modulation = mcsModulation <$> lowest_mcs
             -- Interleaver MCS can be different for PHR and Payload
 
             -- PSDU
@@ -94,7 +93,7 @@ mrOfdmModulator
                         psdu_encoder_last_o
                         psdu_interleaver_ready_i
             -- 4) OFDM
-            (psdu_interleaver_ready_i, psdu_ofdm_valid_o, psdu_ofdm_data_o, psdu_ofdm_last_o, _, _) =
+            (psdu_interleaver_ready_i, psdu_ofdm_valid_o, psdu_ofdm_data_o, psdu_ofdm_last_o, _, _, _) =
                 unbundle $
                     ofdm
                         ofdmOption
@@ -110,7 +109,7 @@ mrOfdmModulator
                         psdu_ofdm_ready_i
 
             -- PHR
-            phrLength = (resize <$> (n_dbps <$> ofdmOption <*> lowest_mcs <*> phyOFDMInterleaving)) * (resize <$> (phrNSymbols <$> ofdmOption <*> phyOFDMInterleaving))
+            phrLength = resize <$> ((mul) <$> (n_dbps <$> ofdmOption <*> lowest_mcs <*> phyOFDMInterleaving) <*> (phrNSymbols <$> ofdmOption <*> phyOFDMInterleaving))
             -- 1) Generation
             (phr_valid_o, phr_data_o, phr_last_o, counter) = unbundle $ phr mcs psdu_length scrambler_seed phrLength phr_ready_i start_i
             -- 2) Encoder
@@ -135,11 +134,11 @@ mrOfdmModulator
                         phr_encoder_last_o
                         phr_interleaver_ready_i
             -- 4) OFDM
-            (phr_interleaver_ready_i, phr_ofdm_valid_o, phr_ofdm_data_o, phr_ofdm_last_o, phr_pilotset, pn9_seed) =
+            (phr_interleaver_ready_i, phr_ofdm_valid_o, phr_ofdm_data_o, phr_ofdm_last_o, phr_pilotset, pn9_seed, ofdmMasterWriteCounter) =
                 unbundle $
                     ofdm
                         ofdmOption
-                        mcs
+                        lowest_mcs
                         (pure 1)
                         phr_interleaver_valid_o
                         phr_interleaver_data_o

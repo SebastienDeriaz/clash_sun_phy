@@ -12,36 +12,37 @@ data State
   deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
   deriving anyclass (NFDataX)
 
-nextState :: State -> Bit -> Bit -> State
+nextState :: State -> Bit -> Bit -> Bit -> State
 --        ┌state
 --        │     ┌valid_i
 --        │     │ ┌counterEnd
--- Idle   │     │ │
-nextState Idle 0 _ = Idle
-nextState Idle 1 _ = Write
+--        │     │ │ ┌ready_i
+-- Idle   │     │ │ │
+nextState Idle  0 _ _ = Idle
+nextState Idle  1 _ _ = Write
 -- Write
-nextState Write _ 0 = Write
-nextState Write _ 1 = Read
+nextState Write _ 0 _ = Write
+nextState Write _ 1 _ = Read
 -- Read
-nextState Read _ 0 = Read
-nextState Read _ 1 = Idle
+nextState Read  _ 1 1 = Idle
+nextState Read  _ _ _ = Read
 
 nextCounter :: State -> Bit -> Bit -> Bit -> Bit -> Unsigned 9 -> Unsigned 9
 --          ┌state
 --          │     ┌valid_i
 --          │     │ ┌ready_o
---          │     │ │ ┌ready_i
---          │     │ │ │ ┌counterEnd
+--          │     │ │ ┌counterEnd
+--          │     │ │ │ ┌ready_i
 --          │     │ │ │ │ ┌counter
 -- Idle     │     │ │ │ │ │
-nextCounter Idle 1 1 _ _ _ = 1
-nextCounter Idle _ _ _ _ _ = 0
+nextCounter Idle  1 1 _ _ _ = 1
+nextCounter Idle  _ _ _ _ _ = 0
 nextCounter Write _ _ 1 _ _ = 0
 nextCounter Write 1 1 _ _ x = x + 1
 nextCounter Write _ _ _ _ x = x
-nextCounter Read _ _ 1 _ _ = 0
-nextCounter Read _ _ _ 1 x = x + 1
-nextCounter Read _ _ _ 0 x = x
+nextCounter Read  _ _ 1 1 _ = 0
+nextCounter Read  _ _ 0 1 x = x + 1
+nextCounter Read  _ _ _ 0 x = x
 
 nextBuffer :: State -> Bit -> Bit -> Unsigned 9 -> Bit -> Bit -> BitVector 384 -> BitVector 384
 --         ┌state
@@ -52,9 +53,9 @@ nextBuffer :: State -> Bit -> Bit -> Unsigned 9 -> Bit -> Bit -> BitVector 384 -
 --         │     │ │ │ │ ┌data_i
 --         │     │ │ │ │ │ ┌buffer
 -- Idle    │     │ │ │ │ │ │
-nextBuffer Idle 1 _ i _ 1 buffer = setBit buffer (fromEnum i)
+nextBuffer Idle  1 _ i _ 1 buffer = setBit buffer (fromEnum i)
 nextBuffer Write 1 _ i _ 1 buffer = setBit buffer (fromEnum i)
-nextBuffer Read _ 1 _ 1 _ buffer = 0
+nextBuffer Read  _ 1 _ 1 _ buffer = 0
 nextBuffer _ _ _ _ _ _ buffer = buffer
 
 ready :: State -> Bit
@@ -148,7 +149,7 @@ interleaver bp mcs ofdmOption _phyOFDMInterleaving valid_i data_i last_i ready_i
   slaveWrite = boolToBit <$> ((bitToBool <$> ready_i) .&&. (bitToBool <$> valid_out))
   masterWrite = boolToBit <$> ((bitToBool <$> ready_out) .&&. (bitToBool <$> valid_i))
 
-  state = register Idle $ nextState <$> state <*> valid_i <*> (boolToBit <$> counterEnd)
+  state = register Idle $ nextState <$> state <*> valid_i <*> (boolToBit <$> counterEnd) <*> ready_i
 
   buffer = register (0 :: BitVector 384) $ nextBuffer <$> state <*> masterWrite <*> slaveWrite <*> idx <*> (boolToBit <$> counterEnd) <*> data_i <*> buffer
 

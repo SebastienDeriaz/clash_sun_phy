@@ -34,6 +34,10 @@ import System.IO
 import System.IO qualified as IO
 import Test.Hspec
 import Test.QuickCheck
+import GHC.TypeLits
+import Data.Proxy
+import Numeric
+import Text.Printf
 
 type OutputSize = 200
 type InputSize = 608 -- (lengthS l1Data) * 8
@@ -60,17 +64,14 @@ expectedOutput =
         { _data = repeat 0
         , valid = 1
         , ready = 0
-        , psdu_ready = 0
-        , psdu_valid = 0
-        , ofdm_valid = 0
-        , ofdm_ready = 0
-        , phr_encoder_ready_i = 0
-        , phr_encoder_valid_o = 0
-        , phr_interleaver_ready_i = 0
-        , phr_interleaver_valid_o = 0
+        -- debug
         , phr_ofdm_ready_i = 0
         , phr_ofdm_valid_o = 0
-        , phr_ofdm_write = 0
+        , psdu_ofdm_ready_i = 0
+        , psdu_ofdm_valid_o = 0
+        , phr_interleaver_ready_i = 0
+        , phr_interleaver_valid_o = 0
+        , ofdmMasterWriteCounter = 0
         }
 
 writeCsv :: ToNamedRecord a => FilePath -> [a] -> IO ()
@@ -78,6 +79,12 @@ writeCsv file records = pure ()
 
 instance Variable Bit where
     var = variable "bit" 1 show
+
+instance forall n . (KnownNat n) => Variable (Unsigned n) where
+    var = variable "bit" n vcdBin
+        where
+            vcdBin = printf ("b%0" <> show n <> "b ")
+            n = (fromIntegral $ natVal (Proxy :: Proxy n))
 
 instance Variable Input where
     var handle path a = do
@@ -91,27 +98,25 @@ instance Variable Output where
     var handle path a = do
         valid <- var handle (path <> ["valid_o"]) a.valid
         ready <- var handle (path <> ["ready_o"]) a.ready
-        psduValid <- var handle (path <> ["debug", "psdu_valid"]) a.psdu_valid
-        psduReady <- var handle (path <> ["debug", "psdu_ready"]) a.psdu_ready
-        phr_encoder_ready_i <- var handle(path <> ["debug", "phr_encoder_ready_i"]) a.phr_encoder_ready_i
-        phr_encoder_valid_o <- var handle(path <> ["debug", "phr_encoder_valid_o"]) a.phr_encoder_valid_o
-        phr_interleaver_ready_i <- var handle(path <> ["debug", "phr_interleaver_ready_i"]) a.phr_interleaver_ready_i
-        phr_interleaver_valid_o <- var handle(path <> ["debug", "phr_interleaver_valid_o"]) a.phr_interleaver_valid_o
-        phr_ofdm_ready_i <- var handle(path <> ["debug", "phr_ofdm_ready_i"]) a.phr_ofdm_ready_i
-        phr_ofdm_valid_o <- var handle(path <> ["debug", "phr_ofdm_valid_o"]) a.phr_ofdm_valid_o
-        phr_ofdm_write <- var handle(path <> ["debug", "phr_ofdm_write"]) a.phr_ofdm_write
+        -- debug
+        phr_ofdm_ready_i <- var handle (path <> ["debug", "phr_ofdm_ready_i"]) a.phr_ofdm_ready_i
+        phr_ofdm_valid_o <- var handle (path <> ["debug", "phr_ofdm_valid_o"]) a.phr_ofdm_valid_o
+        psdu_ofdm_ready_i <- var handle (path <> ["debug", "psdu_ofdm_ready_i"]) a.psdu_ofdm_ready_i
+        psdu_ofdm_valid_o <- var handle (path <> ["debug", "psdu_ofdm_valid_o"]) a.psdu_ofdm_valid_o
+        phr_interleaver_ready_i <- var handle (path <> ["debug", "phr_interleaver_ready_i"]) a.phr_interleaver_ready_i
+        phr_interleaver_valid_o <- var handle (path <> ["debug", "phr_interleaver_valid_o"]) a.phr_interleaver_valid_o
+        ofdmMasterWriteCounter <- var handle (path <> ["debug", "ofdmMasterWriteCounter"]) a.ofdmMasterWriteCounter
         pure $ \a -> do
             valid a.valid
             ready a.ready
-            psduValid a.psdu_valid
-            psduReady a.psdu_ready
-            phr_encoder_ready_i a.phr_encoder_ready_i
-            phr_encoder_valid_o a.phr_encoder_valid_o
-            phr_interleaver_ready_i a.phr_interleaver_ready_i
-            phr_interleaver_valid_o a.phr_interleaver_valid_o
+            -- debug
             phr_ofdm_ready_i a.phr_ofdm_ready_i
             phr_ofdm_valid_o a.phr_ofdm_valid_o
-            phr_ofdm_write a.phr_ofdm_write
+            psdu_ofdm_ready_i a.psdu_ofdm_ready_i
+            psdu_ofdm_valid_o a.psdu_ofdm_valid_o
+            phr_interleaver_ready_i a.phr_interleaver_ready_i
+            phr_interleaver_valid_o a.phr_interleaver_valid_o
+            ofdmMasterWriteCounter a.ofdmMasterWriteCounter
 
 writeVcd :: FilePath -> [Input] -> [Output] -> IO ()
 writeVcd file inputs outputs = do
