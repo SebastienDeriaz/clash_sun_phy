@@ -14,6 +14,7 @@ import SunPhy.MR_OFDM.PHR
 import SunPhy.MR_OFDM.Puncturer
 import SunPhy.MR_OFDM.STF
 import SunPhy.Scrambler
+import SunPhy.Padder
 
 data MrOfdmModulatorInput = MrOfdmModulatorInput
     { ofdmOption :: OFDM_Option
@@ -105,13 +106,27 @@ mrOfdmModulator input = do
         -- Interleaver MCS can be different for PHR and Payload
 
         -- PSDU
-        -- 1) Scrambler
+        -- 1) Padding
+        psduPadderInput :: Signal dom PadderInput
+        psduPadderInput = 
+            bundle (input, psduScramblerOutput)
+                <&> \(input, psduScramblerOutput) ->
+                    PadderInput
+                    { axiInput = input.psduAxiInput
+                    , axiOutputFeedback = psduScramblerOutput.axiInputFeedback
+                    , tailSize = 6
+                    , sizeMultiple = n_dbps input.ofdmOption input.mcs input.phyOFDMInterleaving
+                    }
+        psduPadderOutput :: Signal dom PadderOutput
+        psduPadderOutput = padder psduPadderInput
+
+        -- 2) Scrambler
         psduScramblerInput :: Signal dom ScramblerInput
         psduScramblerInput =
-            bundle (input, psduEncoderOutput, scrambler_pn9_seed)
-                <&> \(input, psduEncoderOutput, scrambler_pn9_seed) ->
+            bundle (psduPadderOutput, psduEncoderOutput, scrambler_pn9_seed)
+                <&> \(psduPadderOutput, psduEncoderOutput, scrambler_pn9_seed) ->
                     ScramblerInput
-                        { axiInput = input.psduAxiInput
+                        { axiInput = psduPadderOutput.axiOutput
                         , axiOutputFeedback = psduEncoderOutput.axiInputFeedback
                         , pn9Seed = scrambler_pn9_seed
                         }
@@ -119,7 +134,7 @@ mrOfdmModulator input = do
         psduScramblerOutput :: Signal dom ScramblerOutput
         psduScramblerOutput = scrambler psduScramblerInput
 
-        -- 2) Encoder
+        -- 3) Encoder
         psduEncoderInput :: Signal dom EncoderInput
         psduEncoderInput =
             bundle (psduScramblerOutput, psduPuncturerOutput, input)
@@ -132,7 +147,7 @@ mrOfdmModulator input = do
         psduEncoderOutput :: Signal dom EncoderOutput
         psduEncoderOutput = encoder psduEncoderInput
 
-        -- 3) Puncturer
+        -- 4) Puncturer
         psduPuncturerInput :: Signal dom PuncturerInput
         psduPuncturerInput =
             bundle (psduEncoderOutput, psduInterleaverOutput, input)
@@ -146,7 +161,7 @@ mrOfdmModulator input = do
         psduPuncturerOutput :: Signal dom PuncturerOutput
         psduPuncturerOutput = puncturer psduPuncturerInput
 
-        -- 4) Interleaver
+        -- 5) Interleaver
         psduInterleaverInput :: Signal dom InterleaverInput
         psduInterleaverInput =
             bundle (input, psduPuncturerOutput, psduOfdmOutput)
@@ -161,7 +176,7 @@ mrOfdmModulator input = do
         psduInterleaverOutput :: Signal dom InterleaverOutput
         psduInterleaverOutput = interleaver psduInterleaverInput
 
-        -- 5) OFDM
+        -- 6) OFDM
         psduOfdmInput :: Signal dom OfdmInput
         psduOfdmInput =
             bundle (input, psduInterleaverOutput, concat4Output, phrOfdmOutput)
