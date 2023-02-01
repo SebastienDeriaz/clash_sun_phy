@@ -16,6 +16,8 @@ default-extensions:
   - TemplateHaskell
   - TypeApplications
   - TypeFamilies
+  - DuplicateRecordFields
+  - OverloadedRecordDot
 
 dependencies:
   - QuickCheck

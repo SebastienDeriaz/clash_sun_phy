@@ -8,6 +8,7 @@ module SunPhy.Parallelizer where
 import Clash.Prelude
 import Data.Functor ((<&>))
 import SunPhy.AXI
+import Data.Proxy
 
 -- A module to convert an AXI serial stream to a vector
 
@@ -60,7 +61,7 @@ parallelizer input = do
             reading
 
         _data :: Signal dom (Vec n a)
-        _data = register (repeat (0) :: Vec n a) $ mux
+        _data = register (repeat 0 :: Vec n a) $ mux
           masterWrite
           (replace
             <$> bitCounter
@@ -68,10 +69,14 @@ parallelizer input = do
             <*> _data)
           _data
 
+        n = fromIntegral $ natVal (Proxy :: Proxy n)
+        
         bitCounter :: Signal dom (Index n)
         bitCounter = register (0 :: Index n) $ mux
           masterWrite
-          (bitCounter + 1)
+          (mux (bitCounter .==. n - 1)
+            bitCounter
+            (bitCounter + 1))
           $ mux
             slaveWrite
             0

@@ -57,7 +57,7 @@ bypass valid_i data_i last_i ready_i = bundle(valid_o, data_o, last_o, ready_o)
     -- Otherwise (no change)
     nextState x      _ _ = x
 
-    state = register (Idle) $ nextState <$> state <*> masterWrite <*> slaveWrite
+    state = register Idle $ nextState <$> state <*> masterWrite <*> slaveWrite
 
     a = register (0 :: Bit) nextA
     nextA = mux (bitToBool <$> masterWrite) data_i a

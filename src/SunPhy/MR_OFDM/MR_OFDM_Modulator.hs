@@ -33,26 +33,55 @@ data MrOfdmModulatorOutput = MrOfdmModulatorOutput
     { psduAxiInputFeedback :: AxiBackward
     , axiOutput :: AxiForward IQ
     , -- debug
+      -- ready signals
       stfReady :: Bit
     , ltfReady :: Bit
     , phrReady :: Bit
     , psduReady :: Bit
-    , phr_ready_i :: Bit
+    , -- streams (PHR)
+      phr_ready_i :: Bit
     , phr_valid_o :: Bit
+    , phr_last_o :: Bit
     , phr_encoder_ready_i :: Bit
     , phr_encoder_valid_o :: Bit
-    , phr_puncturer_ready_i :: Bit
-    , phr_puncturer_valid_o :: Bit
+    , phr_encoder_last_o :: Bit
     , phr_interleaver_ready_i :: Bit
     , phr_interleaver_valid_o :: Bit
+    , phr_interleaver_last_o :: Bit
     , phr_ofdm_ready_i :: Bit
     , phr_ofdm_valid_o :: Bit
+    , phr_ofdm_last_o :: Bit
+    , -- streams (PSDU)
+      psdu_ready_i :: Bit
+    , psdu_valid_o :: Bit
+    , psdu_last_o :: Bit
+    , psdu_padder_ready_i :: Bit
+    , psdu_padder_valid_o :: Bit
+    , psdu_padder_last_o :: Bit
+    , psdu_scrambler_ready_i :: Bit
+    , psdu_scrambler_valid_o :: Bit
+    , psdu_scrambler_last_o :: Bit
+    , psdu_encoder_ready_i :: Bit
+    , psdu_encoder_valid_o :: Bit
+    , psdu_encoder_last_o :: Bit
+    , psdu_puncturer_ready_i :: Bit
+    , psdu_puncturer_valid_o :: Bit
+    , psdu_puncturer_last_o :: Bit
     , psdu_interleaver_ready_i :: Bit
     , psdu_interleaver_valid_o :: Bit
     , psdu_interleaver_last_o :: Bit
     , psdu_ofdm_ready_i :: Bit
     , psdu_ofdm_valid_o :: Bit
     , psdu_ofdm_last_o :: Bit
+    , -- counters
+      phrInterleaverMasterCounter :: Unsigned 16
+    , phrInterleaverSlaveCounter :: Unsigned 16
+    , phrEncoderSlaveCounter :: Unsigned 10
+    , phrEncoderMasterCounter :: Unsigned 10
+    , psduInterleaverMasterCounter :: Unsigned 16
+    , psduInterleaverSlaveCounter :: Unsigned 16
+    , psduPadderCounter :: Unsigned 9
+    , psduPadderState :: Unsigned 3
     }
     deriving stock (Generic, Show, Eq)
     deriving anyclass (NFDataX)
@@ -63,28 +92,57 @@ mrOfdmModulator
     => Signal dom MrOfdmModulatorInput
     -> Signal dom MrOfdmModulatorOutput
 mrOfdmModulator input = do
-    psduAxiInputFeedback <- psduScramblerOutput <&> (.axiInputFeedback)
+    psduAxiInputFeedback <- psduPadderOutput <&> (.axiInputFeedback)
     axiOutput <- concat4Output <&> (.axiOutput)
+    -- ready signals
     stfReady <- concat4Output <&> (.axiInputFeedbackA) <&> (.ready)
     ltfReady <- concat4Output <&> (.axiInputFeedbackB) <&> (.ready)
     phrReady <- concat4Output <&> (.axiInputFeedbackC) <&> (.ready)
     psduReady <- concat4Output <&> (.axiInputFeedbackD) <&> (.ready)
+    -- streams (PHR)
     phr_ready_i <- phrPHRInput <&> (.axiOutputFeedback) <&> (.ready)
     phr_valid_o <- phrPHROutput <&> (.axiOutput) <&> (.valid)
-    phr_encoder_ready_i <- phrPHRInput <&> (.axiOutputFeedback) <&> (.ready)
-    phr_encoder_valid_o <- phrPHROutput <&> (.axiOutput) <&> (.valid)
-    phr_puncturer_ready_i <- phrEncoderInput <&> (.axiOutputFeedback) <&> (.ready)
-    phr_puncturer_valid_o <- phrEncoderOutput <&> (.axiOutput) <&> (.valid)
+    phr_last_o <- phrPHROutput <&> (.axiOutput) <&> (.last)
+    phr_encoder_ready_i <- phrEncoderInput <&> (.axiOutputFeedback) <&> (.ready)
+    phr_encoder_valid_o <- phrEncoderOutput <&> (.axiOutput) <&> (.valid)
+    phr_encoder_last_o <- phrEncoderOutput <&> (.axiOutput) <&> (.last)
     phr_interleaver_ready_i <- phrInterleaverInput <&> (.axiOutputFeedback) <&> (.ready)
     phr_interleaver_valid_o <- phrInterleaverOutput <&> (.axiOutput) <&> (.valid)
+    phr_interleaver_last_o <- phrInterleaverOutput <&> (.axiOutput) <&> (.last)
     phr_ofdm_ready_i <- phrOfdmInput <&> (.axiOutputFeedback) <&> (.ready)
     phr_ofdm_valid_o <- phrOfdmOutput <&> (.axiOutput) <&> (.valid)
-    psdu_interleaver_ready_i <- psduOfdmInput <&> (.axiOutputFeedback) <&> (.ready)
-    psdu_interleaver_valid_o <- psduOfdmOutput <&> (.axiOutput) <&> (.valid)
-    psdu_interleaver_last_o <- psduOfdmOutput <&> (.axiOutput) <&> (.last)
+    phr_ofdm_last_o <- phrOfdmOutput <&> (.axiOutput) <&> (.last)
+    -- streams (PSDU)
+    psdu_ready_i <- psduPadderOutput <&> (.axiInputFeedback) <&> (.ready)
+    psdu_valid_o <- psduPadderInput <&> (.axiInput) <&> (.valid)
+    psdu_last_o <- psduPadderInput <&> (.axiInput) <&> (.last)
+    psdu_padder_ready_i <- psduPadderInput <&> (.axiOutputFeedback) <&> (.ready)
+    psdu_padder_valid_o <- psduPadderOutput <&> (.axiOutput) <&> (.valid)
+    psdu_padder_last_o <- psduPadderOutput <&> (.axiOutput) <&> (.last)
+    psdu_scrambler_ready_i <- psduScramblerInput <&> (.axiOutputFeedback) <&> (.ready)
+    psdu_scrambler_valid_o <- psduScramblerOutput <&> (.axiOutput) <&> (.valid)
+    psdu_scrambler_last_o <- psduScramblerOutput <&> (.axiOutput) <&> (.last)
+    psdu_encoder_ready_i <- psduEncoderInput <&> (.axiOutputFeedback) <&> (.ready)
+    psdu_encoder_valid_o <- psduEncoderOutput <&> (.axiOutput) <&> (.valid)
+    psdu_encoder_last_o <- psduEncoderOutput <&> (.axiOutput) <&> (.last)
+    psdu_puncturer_ready_i <- psduPuncturerInput <&> (.axiOutputFeedback) <&> (.ready)
+    psdu_puncturer_valid_o <- psduPuncturerOutput <&> (.axiOutput) <&> (.valid)
+    psdu_puncturer_last_o <- psduPuncturerOutput <&> (.axiOutput) <&> (.last)
+    psdu_interleaver_ready_i <- psduInterleaverInput <&> (.axiOutputFeedback) <&> (.ready)
+    psdu_interleaver_valid_o <- psduInterleaverOutput <&> (.axiOutput) <&> (.valid)
+    psdu_interleaver_last_o <- psduInterleaverOutput <&> (.axiOutput) <&> (.last)
     psdu_ofdm_ready_i <- psduOfdmInput <&> (.axiOutputFeedback) <&> (.ready)
     psdu_ofdm_valid_o <- psduOfdmOutput <&> (.axiOutput) <&> (.valid)
     psdu_ofdm_last_o <- psduOfdmOutput <&> (.axiOutput) <&> (.last)
+    -- other
+    phrEncoderSlaveCounter <- phrEncoderOutput <&> (.slaveCounter)
+    phrEncoderMasterCounter <- phrEncoderOutput <&> (.masterCounter)
+    phrInterleaverMasterCounter <- phrInterleaverOutput <&> (.masterCounter)
+    phrInterleaverSlaveCounter <- phrInterleaverOutput <&> (.slaveCounter)
+    psduInterleaverMasterCounter <- psduInterleaverOutput <&> (.masterCounter)
+    psduInterleaverSlaveCounter <- psduInterleaverOutput <&> (.slaveCounter)
+    psduPadderCounter <- psduPadderOutput <&> (.counter)
+    psduPadderState <- psduPadderOutput <&> (.state)
     pure MrOfdmModulatorOutput {..}
     where
         -- Set scrambler seeds (See table 158 802.15.4g)

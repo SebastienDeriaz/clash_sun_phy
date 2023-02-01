@@ -7,6 +7,8 @@ import SunPhy.Serializer
 
 import Clash.Prelude hiding (repeat, take)
 import Prelude (repeat, take)
+import SunPhy.AXI
+import SunPhy.AXI (AxiForward(AxiForward))
 
 type DataCount = 4
 type DataType = Unsigned 4
@@ -19,9 +21,12 @@ inputs = i <$> [0 ..]
     where
         i n =
             SerializerInput
-                { _data = 5 :> 6 :> 7 :> 8 :> Nil
+                { dataVec = 5 :> 6 :> 7 :> 8 :> Nil
                 , start = start n
-                , ready = 1
+                , axiOutputFeedback = AxiBackward
+                    {
+                        ready = 1
+                    }
                 }
         start 0 = 1
         start _ = 0
@@ -32,17 +37,25 @@ outputs = o <$> [0 ..]
         o n
             | n > 0 && n < 5 =
                 SerializerOutput
-                    { _data = n - 1 + 5
-                    , ready = 0
-                    , valid = 1
-                    , last = boolToBit (n == 4)
+                    { axiOutput = AxiForward
+                        { _data = n - 1 + 5
+                        , valid = 1
+                        , last = boolToBit (n == 4)
+                        }
+                    , axiInputFeedback = AxiBackward
+                        { ready = 0
+                        }
                     }
             | otherwise =
                 SerializerOutput
-                    { _data = 0
-                    , ready = 1
-                    , valid = 0
-                    , last = 0
+                    { axiOutput = AxiForward
+                        { _data = 0
+                        , valid = 0
+                        , last = 0
+                        }
+                    , axiInputFeedback = AxiBackward
+                        { ready = 1
+                        }
                     }
 
 firstNShouldBe :: (Eq a, Show a) => Int -> [a] -> [a] -> Expectation

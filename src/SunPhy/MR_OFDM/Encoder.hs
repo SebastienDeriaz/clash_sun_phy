@@ -18,6 +18,8 @@ data EncoderInput = EncoderInput
 data EncoderOutput = EncoderOutput
     { axiInputFeedback :: AxiBackward
     , axiOutput :: AxiForward Bit
+    , masterCounter :: Unsigned 10
+    , slaveCounter :: Unsigned 10
     }
     deriving stock (Generic, Show, Eq)
     deriving anyclass (NFDataX)
@@ -57,6 +59,8 @@ encoder input = do
         _data <- mux (state .==. pure OutputA) a b
         last <- boolToBit <$> (state .==. pure OutputB .&&. isLast)
         pure AxiForward {..}
+    slaveCounter <- slaveCounter
+    masterCounter <- masterCounter
     pure $ EncoderOutput {..}
     where
         readyOut = state .==. pure Buffering
@@ -65,6 +69,16 @@ encoder input = do
 
         masterWrite = readyOut .&&. (axiInput <&> (.valid)) .==. 1
         slaveWrite = (input <&> (.axiOutputFeedback) <&> (.ready)) .==. 1 .&&. validOut
+
+        slaveCounter = register (0 :: Unsigned 10) $ mux
+            slaveWrite
+            (slaveCounter + 1)
+            slaveCounter
+        
+        masterCounter = register (0 :: Unsigned 10) $ mux
+            masterWrite
+            (masterCounter + 1)
+            masterCounter
 
         state =
             register Buffering $

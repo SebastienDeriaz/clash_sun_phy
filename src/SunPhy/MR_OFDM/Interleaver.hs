@@ -1,8 +1,6 @@
-{-# LANGUAGE FlexibleInstances #-}
-
 module SunPhy.MR_OFDM.Interleaver where
 
-import Clash.Prelude
+import Clash.Prelude hiding (last)
 import Data.Functor ((<&>))
 import SunPhy.AXI
 import SunPhy.Bypass (bypass)
@@ -21,6 +19,8 @@ data InterleaverInput = InterleaverInput
 data InterleaverOutput = InterleaverOutput
     { axiInputFeedback :: AxiBackward
     , axiOutput :: AxiForward Bit
+    , masterCounter :: Unsigned 16
+    , slaveCounter :: Unsigned 16
     }
     deriving stock (Generic, Show, Eq)
     deriving anyclass (NFDataX)
@@ -74,13 +74,13 @@ ready' :: InterleaverState -> Bit
 ready' Buffering = 1
 ready' Output = 0
 
-nextLastStore :: InterleaverState -> Bit -> Bit -> Bit
+nextLastStore :: InterleaverState -> Bit -> Bool -> Bit -> Bit -> Bit
 --            ┌state
 --            │         ┌last_i
 --            │         │ ┌last_store
-nextLastStore Buffering 1 _ = 1
-nextLastStore Output _ _ = 0
-nextLastStore _ _ x = x
+nextLastStore Buffering 1 _ _ _ = 1
+nextLastStore Output _ True 1 _ = 0
+nextLastStore _ _ _ _ x = x
 
 -- The maximum value for ncbps could happen when
 -- N_FFT = 128, N_bpsc = 4, phyOFDMInterleaving = 1
@@ -138,6 +138,8 @@ interleaver input = do
     axiInputFeedback <- do
         ready <- ready_o
         pure AxiBackward {..}
+    masterCounter <- masterCounter
+    slaveCounter <- slaveCounter
     pure InterleaverOutput {..}
     where
         -- valid_i data_i last_i ready_i = bundle (ready_o, valid_o, data_o, last_o)
@@ -173,10 +175,26 @@ interleaver input = do
                 nextLastStore
                     <$> state
                     <*> (input <&> (.axiInput) <&> (.last))
+                    <*> counterEnd
+                    <*> slaveWrite
                     <*> lastStore
 
         slaveWrite = boolToBit <$> ((bitToBool <$> ready_i) .&&. (bitToBool <$> valid_o))
         masterWrite = boolToBit <$> ((bitToBool <$> ready_o) .&&. (bitToBool <$> valid_i))
+
+        slaveCounter =
+            register (0 :: Unsigned 16) $
+                mux
+                    (bitToBool <$> slaveWrite)
+                    (slaveCounter + 1)
+                    slaveCounter
+
+        masterCounter =
+            register (0 :: Unsigned 16) $
+                mux
+                    (bitToBool <$> masterWrite)
+                    (masterCounter + 1)
+                    masterCounter
 
         state = register Buffering $ nextState <$> state <*> valid_i <*> (boolToBit <$> counterEnd) <*> ready_i
 

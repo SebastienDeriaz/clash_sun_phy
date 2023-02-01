@@ -12,6 +12,7 @@ build-type:     Simple
 
 library
   exposed-modules:
+      SunPhy.AXI
       SunPhy.Bypass
       SunPhy.Concat2
       SunPhy.Concat3
@@ -30,12 +31,15 @@ library
       SunPhy.MR_OFDM.Interleaver
       SunPhy.MR_OFDM.LTF
       SunPhy.MR_OFDM.LTF_constants
+      SunPhy.MR_OFDM.Modulator
       SunPhy.MR_OFDM.MR_OFDM_Modulator
       SunPhy.MR_OFDM.OFDM
       SunPhy.MR_OFDM.OFDM_Pilots
       SunPhy.MR_OFDM.PHR
+      SunPhy.MR_OFDM.Puncturer
       SunPhy.MR_OFDM.STF
       SunPhy.MR_OFDM.STF_constants
+      SunPhy.Padder
       SunPhy.Parallelizer
       SunPhy.PN9
       SunPhy.Scrambler
@@ -62,6 +66,8 @@ library
       TemplateHaskell
       TypeApplications
       TypeFamilies
+      DuplicateRecordFields
+      OverloadedRecordDot
   build-depends:
       QuickCheck
     , base
@@ -84,6 +90,7 @@ test-suite spec
       MrOfdmModulatorTester
       Parsers
       SerializerSpec
+      VCD
       Paths_SunPhy
   hs-source-dirs:
       test
@@ -102,6 +109,8 @@ test-suite spec
       TemplateHaskell
       TypeApplications
       TypeFamilies
+      DuplicateRecordFields
+      OverloadedRecordDot
   build-depends:
       QuickCheck
     , SunPhy
