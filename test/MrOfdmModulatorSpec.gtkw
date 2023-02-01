@@ -1,0 +1,102 @@
+[*]
+[*] GTKWave Analyzer v3.3.114 (w)1999-2023 BSI
+[*] Wed Feb  1 12:39:16 2023
+[*]
+[dumpfile] "/mnt/Documents/Ecole/HES-SO/TravailMaster/Software/clash_sun_phy/test/MrOfdmModulatorSpec.vcd"
+[dumpfile_mtime] "Wed Feb  1 12:37:49 2023"
+[dumpfile_size] 156017
+[savefile] "/mnt/Documents/Ecole/HES-SO/TravailMaster/Software/clash_sun_phy/test/MrOfdmModulatorSpec.gtkw"
+[timestart] 1633
+[size] 1920 1033
+[pos] -1 -1
+*-10.251583 10000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] Output.
+[sst_width] 273
+[signals_width] 302
+[sst_expanded] 1
+[sst_vpaned_height] 306
+@28
+Input.ready_i
+Input.start_i
+Output.ready_o
+Output.valid_o
+@200
+-
+@28
+Output.debug.stf_ready
+Output.debug.ltf_ready
+Output.debug.phr_ready
+Output.debug.psdu_ready
+@200
+-
+@28
+Output.debug.psdu_ready_i
+Output.debug.psdu_valid_o
+Output.debug.psdu_last_o
+@200
+-
+@28
+Output.debug.psdu_padder_ready_i
+Output.debug.psdu_padder_valid_o
+Output.debug.psdu_padder_last_o
+@24
+Output.debug.psduPadderState[2:0]
+Output.debug.psduPadderCounter[8:0]
+@200
+-
+@28
+Output.debug.psdu_scrambler_ready_i
+Output.debug.psdu_scrambler_valid_o
+Output.debug.psdu_scrambler_last_o
+@200
+-
+@28
+Output.debug.psdu_encoder_ready_i
+Output.debug.psdu_encoder_valid_o
+Output.debug.psdu_encoder_last_o
+@200
+-
+@28
+Output.debug.psdu_puncturer_ready_i
+Output.debug.psdu_puncturer_valid_o
+Output.debug.psdu_puncturer_last_o
+@200
+-
+@24
+Output.debug.psduInterleaverMasterCounter[15:0]
+@28
+Output.debug.psdu_interleaver_ready_i
+Output.debug.psdu_interleaver_valid_o
+Output.debug.psdu_interleaver_last_o
+@24
+Output.debug.psduInterleaverSlaveCounter[15:0]
+@200
+-
+@28
+Output.debug.psdu_ofdm_valid_o
+Output.debug.psdu_ofdm_last_o
+Output.debug.psdu_ofdm_ready_i
+@200
+-
+@28
+Output.debug.phr_ready_i
+Output.debug.phr_valid_o
+Output.debug.phr_last_o
+@200
+-
+@24
+Output.debug.phrEncoderMasterCounter[9:0]
+@28
+Output.debug.phr_encoder_ready_i
+Output.debug.phr_encoder_valid_o
+Output.debug.phr_encoder_last_o
+@201
+-
+@28
+Output.debug.phr_interleaver_ready_i
+Output.debug.phr_interleaver_valid_o
+Output.debug.phr_interleaver_last_o
+@200
+-
+[pattern_trace] 1
+[pattern_trace] 0
