@@ -151,7 +151,7 @@ phr input = do
 
         bitCounter = register (0 :: Unsigned 7) (nextBitCounter <$> state <*> slaveWrite <*> bitCounter)
 
-        bitCounterEnd = boolToBit <$> (bitCounter .==. (input <&> (.phrLength)))
+        bitCounterEnd = boolToBit <$> (bitCounter .==. (input <&> (.phrLength)) - 1)
 
         valid_o = boolToBit <$> (state .==. pure Running)
 
