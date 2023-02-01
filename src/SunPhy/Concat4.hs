@@ -4,6 +4,29 @@ module SunPhy.Concat4 where
 
 import Clash.Prelude
 import SunPhy.MR_OFDM.Constants
+import SunPhy.AXI
+import Data.Functor ((<&>))
+
+data Concat4Input = Concat4Input
+    { axiInputA :: AxiForward IQ
+    , axiInputB :: AxiForward IQ
+    , axiInputC :: AxiForward IQ
+    , axiInputD :: AxiForward IQ
+    , axiOutputFeedback :: AxiBackward
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
+
+data Concat4Output = Concat4Output
+    { axiInputFeedbackA :: AxiBackward
+    , axiInputFeedbackB :: AxiBackward
+    , axiInputFeedbackC :: AxiBackward
+    , axiInputFeedbackD :: AxiBackward
+    , axiOutput :: AxiForward IQ
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
+
 
 -- State machine
 data State = A
@@ -30,42 +53,51 @@ mux4 state a b c d = case state of
     D -> d
 
 concat4
-    :: forall dom a . (HiddenClockResetEnable dom)
-    => NFDataX a
-    => Signal dom Bit -- a_valid_i
-    -> Signal dom a  -- a_data_i
-    -> Signal dom Bit -- a_last_i
-    -> Signal dom Bit -- b_valid_i
-    -> Signal dom a  -- b_data_i
-    -> Signal dom Bit -- b_last_i
-    -> Signal dom Bit -- c_valid_i
-    -> Signal dom a  -- c_data_i
-    -> Signal dom Bit -- c_last_i
-    -> Signal dom Bit -- d_valid_i
-    -> Signal dom a  -- d_data_i
-    -> Signal dom Bit -- d_last_i
-    -> Signal dom Bit -- ready_i
-    -> Signal dom (Bit, Bit, Bit, Bit, Bit, a, Bit, Unsigned 2) -- a_ready_o, b_ready_o, c_ready_o, d_ready_o, valid, data, last
-concat4 a_valid_i a_data_i a_last_i b_valid_i b_data_i b_last_i c_valid_i c_data_i c_last_i d_valid_i d_data_i d_last_i ready_i = bundle (a_ready_o, b_ready_o, c_ready_o, d_ready_o, valid_o, data_o, last_o, state_num)
+    :: forall dom . (HiddenClockResetEnable dom)
+    => Signal dom Concat4Input
+    -> Signal dom Concat4Output
+concat4 input = do
+  -- A Feedback
+  axiInputFeedbackA <- do
+    ready <- ready_i * (boolToBit <$> (state .==. pure A))
+    pure AxiBackward {..}
+  -- B Feedback
+  axiInputFeedbackB <- do
+    ready <- ready_i * (boolToBit <$> (state .==. pure B))
+    pure AxiBackward {..}
+  -- C Feedback
+  axiInputFeedbackC <- do
+    ready <- ready_i * (boolToBit <$> (state .==. pure C))
+    pure AxiBackward {..}
+  -- D Feedback
+  axiInputFeedbackD <- do
+    ready <- ready_i * (boolToBit <$> (state .==. pure D))
+    pure AxiBackward {..}
+  axiOutput <- do
+    valid <- valid_o 
+    _data <- mux4
+      <$> state
+      <*> (input <&> (.axiInputA) <&> (._data))
+      <*> (input <&> (.axiInputB) <&> (._data))
+      <*> (input <&> (.axiInputC) <&> (._data))
+      <*> (input <&> (.axiInputD) <&> (._data))
+    last <- input <&> (.axiInputD) <&> (.last)
+    pure AxiForward {..}
+  pure Concat4Output {..}
   where
+    valid_o = mux4
+      <$> state
+      <*> (input <&> (.axiInputA) <&> (.valid))
+      <*> (input <&> (.axiInputB) <&> (.valid))
+      <*> (input <&> (.axiInputC) <&> (.valid))
+      <*> (input <&> (.axiInputD) <&> (.valid))
     slaveWrite = valid_o * ready_i
+    ready_i = input <&> (.axiOutputFeedback) <&> (.ready)
 
-    state = register A (nextState <$> state <*> slaveWrite <*> a_last_i <*> b_last_i <*> c_last_i <*> d_last_i)
-
-    a_ready_o = ready_i * (boolToBit <$> (state .==. pure A))
-    b_ready_o = ready_i * (boolToBit <$> (state .==. pure B))
-    c_ready_o = ready_i * (boolToBit <$> (state .==. pure C))
-    d_ready_o = ready_i * (boolToBit <$> (state .==. pure D))
-
-    valid_o = mux4 <$> state <*> a_valid_i <*> b_valid_i <*> c_valid_i <*> d_valid_i
-    
-    last_o = d_last_i
-    data_o = mux4 <$> state <*> a_data_i <*> b_data_i <*> c_data_i <*> d_data_i
-
-    f_state_num :: State -> Unsigned 2
-    f_state_num A = 0
-    f_state_num B = 1
-    f_state_num C = 2
-    f_state_num D = 3
-    
-    state_num = f_state_num <$> state
+    state = register A $ nextState
+      <$> state
+      <*> slaveWrite
+      <*> (input <&> (.axiInputA) <&> (.last))
+      <*> (input <&> (.axiInputB) <&> (.last))
+      <*> (input <&> (.axiInputC) <&> (.last))
+      <*> (input <&> (.axiInputD) <&> (.last))

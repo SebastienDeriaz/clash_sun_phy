@@ -1,74 +1,85 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module SunPhy.MR_OFDM.Interleaver where
 
 import Clash.Prelude
+import Data.Functor ((<&>))
+import SunPhy.AXI
 import SunPhy.Bypass (bypass)
 import SunPhy.MR_OFDM.Constants
 
+data InterleaverInput = InterleaverInput
+    { ofdmOption :: OFDM_Option
+    , mcs :: MCS
+    , phyOFDMInterleaving :: Bit
+    , axiInput :: AxiForward Bit
+    , axiOutputFeedback :: AxiBackward
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
+
+data InterleaverOutput = InterleaverOutput
+    { axiInputFeedback :: AxiBackward
+    , axiOutput :: AxiForward Bit
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
+
 -- State machine
-data State
-  = Idle
-  | Write
-  | Read
-  deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
-  deriving anyclass (NFDataX)
+data InterleaverState
+    = Buffering
+    | Output
+    deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
+    deriving anyclass (NFDataX)
 
-nextState :: State -> Bit -> Bit -> Bit -> State
+nextState :: InterleaverState -> Bit -> Bit -> Bit -> InterleaverState
 --        ┌state
---        │     ┌valid_i
---        │     │ ┌counterEnd
---        │     │ │ ┌ready_i
--- Idle   │     │ │ │
-nextState Idle  0 _ _ = Idle
-nextState Idle  1 _ _ = Write
--- Write
-nextState Write _ 0 _ = Write
-nextState Write _ 1 _ = Read
--- Read
-nextState Read  _ 1 1 = Idle
-nextState Read  _ _ _ = Read
+--        │         ┌valid_i
+--        │         │ ┌counterEnd
+--        │         │ │ ┌ready_i
+--        │         │ │ │
+nextState Buffering 1 1 _ = Output
+nextState Output _ 1 1 = Buffering
+-- otherwise
+nextState x _ _ _ = x
 
-nextCounter :: State -> Bit -> Bit -> Bit -> Bit -> Unsigned 9 -> Unsigned 9
+nextCounter :: InterleaverState -> Bit -> Bit -> Bit -> Bit -> Unsigned 9 -> Unsigned 9
 --          ┌state
---          │     ┌valid_i
---          │     │ ┌ready_o
---          │     │ │ ┌counterEnd
---          │     │ │ │ ┌ready_i
---          │     │ │ │ │ ┌counter
--- Idle     │     │ │ │ │ │
-nextCounter Idle  1 1 _ _ _ = 1
-nextCounter Idle  _ _ _ _ _ = 0
-nextCounter Write _ _ 1 _ _ = 0
-nextCounter Write 1 1 _ _ x = x + 1
-nextCounter Write _ _ _ _ x = x
-nextCounter Read  _ _ 1 1 _ = 0
-nextCounter Read  _ _ 0 1 x = x + 1
-nextCounter Read  _ _ _ 0 x = x
+--          │         ┌valid_i
+--          │         │ ┌ready_o
+--          │         │ │ ┌counterEnd
+--          │         │ │ │ ┌ready_i
+--          │         │ │ │ │ ┌counter
+-- Idle     │         │ │ │ │ │
+nextCounter Buffering 1 _ 1 _ _ = 0
+nextCounter Buffering 1 _ 0 _ x = x + 1
+nextCounter Output _ _ 1 1 _ = 0
+nextCounter Output _ _ 0 1 x = x + 1
+nextCounter _ _ _ _ _ x = x
 
-nextBuffer :: State -> Bit -> Bit -> Unsigned 9 -> Bit -> Bit -> BitVector 384 -> BitVector 384
+nextBuffer :: InterleaverState -> Bit -> Bit -> Unsigned 9 -> Bit -> Bit -> BitVector 384 -> BitVector 384
 --         ┌state
---         │     ┌masterWrite
---         │     │ ┌slaveWrite
---         │     │ │ ┌counter
---         │     │ │ │ ┌counterEnd
---         │     │ │ │ │ ┌data_i
---         │     │ │ │ │ │ ┌buffer
--- Idle    │     │ │ │ │ │ │
-nextBuffer Idle  1 _ i _ 1 buffer = setBit buffer (fromEnum i)
-nextBuffer Write 1 _ i _ 1 buffer = setBit buffer (fromEnum i)
-nextBuffer Read  _ 1 _ 1 _ buffer = 0
+--         │         ┌masterWrite
+--         │         │ ┌slaveWrite
+--         │         │ │ ┌counter
+--         │         │ │ │ ┌counterEnd
+--         │         │ │ │ │ ┌data_i
+--         │         │ │ │ │ │ ┌buffer
+-- Idle    │         │ │ │ │ │ │
+nextBuffer Buffering 1 _ i _ 1 buffer = setBit buffer (fromEnum i)
+nextBuffer Output _ 1 _ 1 _ buffer = 0
 nextBuffer _ _ _ _ _ _ buffer = buffer
 
-ready :: State -> Bit
-ready Idle = 1
-ready Write = 1
-ready Read = 0
+ready' :: InterleaverState -> Bit
+ready' Buffering = 1
+ready' Output = 0
 
-nextLastStore :: State -> Bit -> Bit -> Bit
+nextLastStore :: InterleaverState -> Bit -> Bit -> Bit
 --            ┌state
---            │     ┌last_i
---            │     │ ┌last_store
-nextLastStore Write 1 _ = 1
-nextLastStore Idle _ _ = 0
+--            │         ┌last_i
+--            │         │ ┌last_store
+nextLastStore Buffering 1 _ = 1
+nextLastStore Output _ _ = 0
 nextLastStore _ _ x = x
 
 -- The maximum value for ncbps could happen when
@@ -79,12 +90,12 @@ ncbps :: Bit -> Unsigned 8 -> Unsigned 3 -> Unsigned 3 -> Unsigned 9
 -- Divide first to avoid having to deal with big numbers (or overflows)
 -- This can always be done because nfft is 16 at minimum and sf is 4 at maximum
 ncbps int _nfft _nbpsc _sf = nfft `div` 4 `div` sf * nbpsc * 3
- where
-  nfft = resize _nfft :: Unsigned 9
-  nbpsc = resize _nbpsc :: Unsigned 9
-  sf = case int of
-    0 -> resize _sf :: Unsigned 9
-    1 -> 1 :: Unsigned 9
+    where
+        nfft = resize _nfft :: Unsigned 9
+        nbpsc = resize _nbpsc :: Unsigned 9
+        sf = case int of
+            0 -> resize _sf :: Unsigned 9
+            1 -> 1 :: Unsigned 9
 
 -- S as a function of N_bpsc
 s :: Unsigned 3 -> Unsigned 2
@@ -93,17 +104,17 @@ s _ = 1
 
 i :: Unsigned 9 -> Unsigned 4 -> Unsigned 9 -> Unsigned 2 -> Unsigned 9
 i ncbps _nrow k _s = ncbps `div` nrow * (k `mod` nrow) + k `div` nrow
- where
-  nrow = resize _nrow :: Unsigned 9
-  s = resize _s :: Unsigned 9
+    where
+        nrow = resize _nrow :: Unsigned 9
+        s = resize _s :: Unsigned 9
 
 j :: Unsigned 9 -> Unsigned 4 -> Unsigned 9 -> Unsigned 2 -> Unsigned 9
 j ncbps _nrow k _s = s * (k `div` s) + (k + ncbps - (resize a :: Unsigned 9)) `mod` s
- where
-  nrow = resize _nrow :: Unsigned 9
-  s = resize _s :: Unsigned 9
+    where
+        nrow = resize _nrow :: Unsigned 9
+        s = resize _s :: Unsigned 9
 
-  a = (resize nrow :: Unsigned 12) * (resize k :: Unsigned 12) `div` (resize ncbps :: Unsigned 12)
+        a = (resize nrow :: Unsigned 12) * (resize k :: Unsigned 12) `div` (resize ncbps :: Unsigned 12)
 
 n_row :: Unsigned 3 -> Unsigned 4
 -- sf
@@ -111,57 +122,74 @@ n_row 1 = 12
 n_row 2 = 6
 n_row 4 = 3
 
-interleaver ::
-  forall dom.
-  HiddenClockResetEnable dom =>
-  Signal dom Bit -> -- bypass
-  Signal dom (Unsigned 3) -> -- MCS
-  Signal dom (Unsigned 3) -> -- OFDM option
-  Signal dom Bit -> -- phyOFDMInterleaving
-  Signal dom Bit -> -- valid_i
-  Signal dom Bit -> -- data_i
-  Signal dom Bit -> -- last_i
-  Signal dom Bit -> -- ready_i
-  Signal dom (Bit, Bit, Bit, Bit) -- ready_o, valid_o, data_o, last_o, test
-interleaver bp mcs ofdmOption _phyOFDMInterleaving valid_i data_i last_i ready_i = bundle (ready_o, valid_o, data_o, last_o)
- where
-  _sf :: Signal dom (Unsigned 3)
-  _sf = frequencySpreading <$> mcs
+interleaver
+    :: forall dom
+     . HiddenClockResetEnable dom
+    => Signal dom InterleaverInput
+    -> Signal dom InterleaverOutput
+interleaver input = do
+    -- Output
+    axiOutput <- do
+        valid <- valid_o
+        _data <- boolToBit <$> (testBit <$> buffer <*> (fromEnum <$> counter))
+        last <- boolToBit <$> (state .==. pure Output .&&. (lastStore .==. 1) .&&. counterEnd)
+        pure AxiForward {..}
+    -- Input feedback
+    axiInputFeedback <- do
+        ready <- ready_o
+        pure AxiBackward {..}
+    pure InterleaverOutput {..}
+    where
+        -- valid_i data_i last_i ready_i = bundle (ready_o, valid_o, data_o, last_o)
 
-  _nbpsc = nbpsc <$> mcs
-  _n_fft = n_fft <$> ofdmOption
+        valid_i = input <&> (.axiInput) <&> (.valid)
+        ready_i = input <&> (.axiOutputFeedback) <&> (.ready)
+        _sf :: Signal dom (Unsigned 3)
+        _sf = frequencySpreading <$> (input <&> (.mcs))
 
-  _n_row :: Signal dom (Unsigned 4)
-  _n_row = n_row <$> _sf
+        _nbpsc = nbpsc <$> (input <&> (.mcs))
+        _n_fft = n_fft <$> (input <&> (.ofdmOption))
 
-  _ncbps = ncbps <$> _phyOFDMInterleaving <*> _n_fft <*> _nbpsc <*> _sf
-  _s :: Signal dom (Unsigned 2)
-  _s = s <$> _nbpsc
+        _n_row :: Signal dom (Unsigned 4)
+        _n_row = n_row <$> _sf
 
-  _j = j <$> _ncbps <*> _n_row <*> counter <*> _s
-  idx = i <$> _ncbps <*> _n_row <*> _j <*> _s
+        _ncbps =
+            ncbps
+                <$> (input <&> (.phyOFDMInterleaving))
+                <*> _n_fft
+                <*> _nbpsc
+                <*> _sf
+        _s :: Signal dom (Unsigned 2)
+        _s = s <$> _nbpsc
 
-  counter = register (0 :: Unsigned 9) $ nextCounter <$> state <*> valid_i <*> ready_o <*> (boolToBit <$> counterEnd) <*> ready_i <*> counter
-  counterEnd = counter .==. (_ncbps - 1)
+        _j = j <$> _ncbps <*> _n_row <*> counter <*> _s
+        idx = i <$> _ncbps <*> _n_row <*> _j <*> _s
 
-  lastStore = register (0 :: Bit) (nextLastStore <$> state <*> last_i <*> lastStore)
+        counter = register (0 :: Unsigned 9) $ nextCounter <$> state <*> valid_i <*> ready_o <*> (boolToBit <$> counterEnd) <*> ready_i <*> counter
+        counterEnd = counter .==. (_ncbps - 1)
 
-  slaveWrite = boolToBit <$> ((bitToBool <$> ready_i) .&&. (bitToBool <$> valid_out))
-  masterWrite = boolToBit <$> ((bitToBool <$> ready_out) .&&. (bitToBool <$> valid_i))
+        lastStore =
+            register (0 :: Bit) $
+                nextLastStore
+                    <$> state
+                    <*> (input <&> (.axiInput) <&> (.last))
+                    <*> lastStore
 
-  state = register Idle $ nextState <$> state <*> valid_i <*> (boolToBit <$> counterEnd) <*> ready_i
+        slaveWrite = boolToBit <$> ((bitToBool <$> ready_i) .&&. (bitToBool <$> valid_o))
+        masterWrite = boolToBit <$> ((bitToBool <$> ready_o) .&&. (bitToBool <$> valid_i))
 
-  buffer = register (0 :: BitVector 384) $ nextBuffer <$> state <*> masterWrite <*> slaveWrite <*> idx <*> (boolToBit <$> counterEnd) <*> data_i <*> buffer
+        state = register Buffering $ nextState <$> state <*> valid_i <*> (boolToBit <$> counterEnd) <*> ready_i
 
-  output = boolToBit <$> (testBit <$> buffer <*> (fromEnum <$> counter))
+        buffer =
+            register (0 :: BitVector 384) $
+                nextBuffer
+                    <$> state
+                    <*> masterWrite
+                    <*> slaveWrite
+                    <*> idx
+                    <*> (boolToBit <$> counterEnd)
+                    <*> (input <&> (.axiInput) <&> (._data))
+                    <*> buffer
 
-  ready_out = ready <$> state
-  valid_out = boolToBit <$> (state .==. pure Read)
-  -- Bypass
-  (bypassValid_o, bypassData_o, bypassLast_o, bypassReady_o) = unbundle $ bypass valid_i data_i last_i ready_i
-  -- Outputs
-  bpb = bitToBool <$> bp
-  ready_o = mux bpb bypassReady_o ready_out
-  valid_o = mux bpb bypassValid_o valid_out
-  data_o = mux bpb bypassData_o (mux (state .==. (pure Read)) output (pure 0))
-  last_o = mux bpb bypassLast_o $ boolToBit <$> (state .==. pure Read .&&. (lastStore .==. 1) .&&. counterEnd)
+        ready_o = ready' <$> state
+        valid_o = boolToBit <$> (state .==. pure Output)

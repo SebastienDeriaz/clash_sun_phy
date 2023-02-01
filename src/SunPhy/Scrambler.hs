@@ -3,9 +3,25 @@
 module SunPhy.Scrambler where
 
 import SunPhy.PN9 (pn9)
-
+import SunPhy.AXI
 import Clash.Prelude
+import Data.Functor ((<&>))
 
+
+data ScramblerInput = ScramblerInput
+    { axiInput :: AxiForward Bit
+    , axiOutputFeedback :: AxiBackward
+    , pn9Seed :: BitVector 9
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
+
+data ScramblerOutput = ScramblerOutput
+    { axiInputFeedback :: AxiBackward
+    , axiOutput :: AxiForward Bit
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
 
 nextLastEnable :: Bit -> Unsigned 2 -> Bit -> Bit
 -- lastEnable, buffer, last_i
@@ -27,32 +43,49 @@ nextBuffer 1 0 x = x - 1
 
 scrambler
     :: forall dom . HiddenClockResetEnable dom
-    => Signal dom Bit -- bypass
-    -> Signal dom Bit -- ready_i
-    -> Signal dom Bit -- valid_i
-    -> Signal dom Bit -- data_i
-    -> Signal dom Bit -- last_i
-    -> Signal dom (BitVector 9) -- pn9_seed
-    -> Signal dom (Bit, Bit, Bit, Bit) -- ready_o, valid_o, data_o, last_o
-scrambler bypass ready_i valid_i data_i last_i pn9_seed = bundle (ready_o, valid_o, data_o, last_o)
+    => Signal dom ScramblerInput
+    -> Signal dom ScramblerOutput
+scrambler input = do
+  -- Input feedback
+  axiInputFeedback <- do
+    ready <- ready_o
+    pure AxiBackward {..}
+  -- Output
+  axiOutput <- do
+    valid <- valid_o
+    _data <- data_o
+    last <- last_o
+    pure AxiForward {..}
+    
+  pure ScramblerOutput {..}
+
   where
+    ready_i = input <&> (.axiOutputFeedback) <&> (.ready)
+
+
     slaveWrite = ready_i * valid_o
-    masterWrite = ready_o * valid_i
+    masterWrite = ready_o * (input <&> (.axiInput) <&> (.valid))
 
     buffer = register (0 :: Unsigned 2) nextBuffer'
     nextBuffer' = nextBuffer <$> slaveWrite <*> masterWrite <*> buffer
     a_nb = buffer ./=. pure 2
 
-    lastEnable = register (0 :: Bit) (nextLastEnable <$> lastEnable <*> buffer <*> last_i)
+    lastEnable = register (0 :: Bit) $ nextLastEnable
+      <$> lastEnable
+      <*> buffer
+      <*> (input <&> (.axiInput) <&> (.last))
 
     pn9_next = masterWrite
     pn9_reset = last_o
 
     pn9_value :: Signal dom Bit
-    (pn9_value, _) = unbundle $ pn9 pn9_seed pn9_next pn9_reset
+    (pn9_value, _) = unbundle $ pn9
+      (input <&> (.pn9Seed))
+      pn9_next
+      pn9_reset
 
 
-    scrambledInput = xor <$> pn9_value <*> data_i
+    scrambledInput = xor <$> pn9_value <*> (input <&> (.axiInput) <&> (._data))
 
     a = register (0 :: Bit) nextA
     nextA = mux (bitToBool <$> masterWrite) scrambledInput a

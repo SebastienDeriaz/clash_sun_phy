@@ -1,14 +1,30 @@
 module SunPhy.MR_OFDM.LTF where
 
 import Clash.Prelude
+import Data.Functor ((<&>))
 import SunPhy.MR_OFDM.Constants
 import SunPhy.MR_OFDM.LTF_constants
+import SunPhy.AXI
 
 -- The LTF symbols are repeated twice and a CP of half a symbol is included in the beginning
 -- So if a symbol is composed as such
 -- AB
 -- Then the message is
 -- BABAB
+
+data LTFInput = LTFInput
+    { ofdmOption :: OFDM_Option
+    , axiOutputFeedback :: AxiBackward
+    , start :: Bit
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
+
+data LTFOutput = LTFOutput
+    { axiOutput :: AxiForward IQ
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
 
 data State = Idle
            | Running
@@ -18,24 +34,30 @@ data State = Idle
 
 ltf
   :: forall dom . (HiddenClockResetEnable dom)
-  => Signal dom (Unsigned 3) -- OFDM Option
-  -> Signal dom Bit -- ready_i
-  -> Signal dom Bit -- valid_i
-  -> Signal dom (Bit, Subcarrier, Bit) -- valid_o, data_o, last_o
-ltf ofdmOption ready_i valid_i = bundle(valid_o, data_o, last_o)
+  => Signal dom LTFInput
+  -> Signal dom LTFOutput
+ltf input = do
+  axiOutput <- do
+    valid <- valid_o
+    _data <- dataOut <$> ofdmOption <*> bitCounter
+    last <- boolToBit <$> (bitCounterEnd .==. 1 .&&. symbolCounterEnd .==. 1)
+    pure AxiForward {..}
+  pure LTFOutput {..}
   where
-    slaveWrite = valid_o * ready_i
+    slaveWrite = valid_o * (input <&> (.axiOutputFeedback) <&> (.ready))
+    start_i = input <&> (.start)
+    ofdmOption = input <&> (.ofdmOption)
 
     nextState :: State -> Bit -> Bit -> Bit -> Bit -> State
     nextState Idle    1 _ _ _ = Running
     nextState Running _ 1 1 1 = Idle
     nextState x       _ _ _ _ = x
 
-    state = register (Idle) $ nextState <$> state <*> valid_i <*> slaveWrite <*> bitCounterEnd <*> symbolCounterEnd
+    state = register (Idle) $ nextState <$> state <*> start_i <*> slaveWrite <*> bitCounterEnd <*> symbolCounterEnd
 
     nextBitCounter :: State -> Unsigned 3 -> Bit -> Bit -> Bit -> Unsigned 8 -> Unsigned 8
     --             ┌state  ┌ofdmOption
-    --             │       │ ┌valid_i 
+    --             │       │ ┌start_i
     --             │       │ │ ┌slaveWrite
     --             │       │ │ │ ┌bitCounterEnd
     --             │       │ │ │ │ ┌bitCounter
@@ -46,11 +68,8 @@ ltf ofdmOption ready_i valid_i = bundle(valid_o, data_o, last_o)
     nextBitCounter Running _ _ 1 0 x = x + 1
     nextBitCounter _       _ _ _ _ x = x
 
-    bitCounter = register (0 :: Unsigned 8) (nextBitCounter <$> state <*> ofdmOption <*> valid_i <*> slaveWrite <*> bitCounterEnd <*> bitCounter)
+    bitCounter = register (0 :: Unsigned 8) (nextBitCounter <$> state <*> ofdmOption <*> start_i <*> slaveWrite <*> bitCounterEnd <*> bitCounter)
     bitCounterEnd = boolToBit <$> (bitCounter .==. ((ltfLength <$> ofdmOption) - 1))
-
-    last_o = boolToBit <$> (bitCounterEnd .==. 1 .&&. symbolCounterEnd .==. 1)
-
 
     ltfLength :: Unsigned 3 -> Unsigned 8
     ltfLength 1 = fromIntegral $ length ltf_1
@@ -72,5 +91,4 @@ ltf ofdmOption ready_i valid_i = bundle(valid_o, data_o, last_o)
     dataOut 3 i = ltf_3 !! i
     dataOut 4 i = ltf_4 !! i
 
-    data_o = dataOut <$> ofdmOption <*> bitCounter
     valid_o = boolToBit <$> (state .==. pure Running)

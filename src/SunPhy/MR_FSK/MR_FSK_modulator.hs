@@ -101,7 +101,11 @@ mrFskModulator
       (splitterCounter <$> phyFSKFECEnabled)
     -- Scrambler
     scrambler_bypass = (1-phyFSKScramblePSDU)
-    (splitter2_b_ready_i, scrambler_valid_o, scrambler_data_o, scrambler_last_o) = unbundle $ scrambler scrambler_bypass scrambler_ready_i splitter2_b_valid_o splitter2_b_data_o splitter2_b_last_o (pure 511)
+    --(splitter2_b_ready_i, scrambler_valid_o, scrambler_data_o, scrambler_last_o) = unbundle $ scrambler scrambler_bypass scrambler_ready_i splitter2_b_valid_o splitter2_b_data_o splitter2_b_last_o (pure 511)
+    splitter2_b_ready_i = pure 0
+    scrambler_valid_o = pure 0
+    scrambler_data_o = pure 0
+    scrambler_last_o = pure 0
     -- SHR
     (shr_valid_o, shr_data_o, shr_last_o) = unbundle $ shr shr_ready_i modulation phyMRFSKSFD phyFSKFECEnabled phyFSKPreambleLength valid_i
     -- Concat3

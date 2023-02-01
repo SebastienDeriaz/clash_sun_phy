@@ -16,9 +16,10 @@ import Clash.Prelude
 --                  ┗━━━━━━━━━━━━┛
 -- 
 -- The challenge resides in the fact that no combinatory path should exist between
--- "left" and "right" sides. Therefore everything must be passed through registers.
+-- "left" (master) and "right" (slave) sides therefore everything must be
+-- passed through registers.
 -- The problem is that when the slave lowers its ready signal (right interface),
--- the left ready (for the master) will still be on for a clock cycle and the master
+-- the left ready (for the master) will still be high for a clock cycle and the master
 -- will be able to write to it.
 -- The Bypass block has to buffer this incoming data and then output it
 

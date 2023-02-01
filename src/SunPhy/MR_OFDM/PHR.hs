@@ -1,9 +1,11 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module SunPhy.MR_OFDM.PHR (phr) where
+module SunPhy.MR_OFDM.PHR where
 
 import Clash.Prelude
+import Data.Functor ((<&>))
+import SunPhy.AXI
 import SunPhy.MR_OFDM.Constants
 
 -- PHR is 36 bits long, the rest if the PHR is bigger is 0s
@@ -19,30 +21,47 @@ import SunPhy.MR_OFDM.Constants
 -- Since the Tail is always 0s, the PHR is technically 30 bits + padding
 -- The maximum (total) PHR length is 72 bits
 
+data PHRInput = PHRInput
+    { mcs :: MCS
+    , frameLength :: Unsigned 11
+    , scramblerSeed :: Unsigned 2
+    , phrLength :: Unsigned 7
+    , start :: Bit
+    , axiOutputFeedback :: AxiBackward
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
+
+data PHROutput = PHROutput
+    { axiOutput :: AxiForward Bit
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
+
 reverseBits :: KnownNat n => BitVector n -> BitVector n
 reverseBits a = v2bv $ reverse $ bv2v a
 
 data PHR = PHR
-    { rate :: Unsigned 5
+    { mcs :: Unsigned 5
     , frameLength :: Unsigned 11
-    , scrambler :: Unsigned 2
+    , scramblerSeed :: Unsigned 2
     }
 
 instance BitPack PHR where
     type BitSize PHR = 22
     pack PHR {..} =
         (0b0 :: BitVector 1)
-            ++# reverseBits (pack scrambler)
+            ++# reverseBits (pack scramblerSeed)
             ++# (0b00 :: BitVector 2)
             ++# reverseBits (pack frameLength)
             ++# (0b0 :: BitVector 1)
-            ++# reverseBits (pack rate)
+            ++# reverseBits (pack mcs)
 
     unpack $(bitPattern "aaaaa.bbbbbbbbbbb..cc.") =
         PHR
-            { rate = unpack aaaaa
+            { mcs = unpack aaaaa
             , frameLength = unpack bbbbbbbbbbb
-            , scrambler = unpack cc
+            , scramblerSeed = unpack cc
             }
 
 data State
@@ -92,16 +111,18 @@ serialHCS start_i data_i = output
 phr
     :: forall dom
      . (HiddenClockResetEnable dom)
-    => Signal dom MCS -- Rate
-    -> Signal dom (Unsigned 11) -- FrameLength
-    -> Signal dom (Unsigned 2) -- Scrambler
-    -> Signal dom (Unsigned 7) -- PHR length
-    -> Signal dom Bit -- ready_i
-    -> Signal dom Bit -- start_i
-    -> Signal dom (Bit, Bit, Bit, Unsigned 7) -- valid_o, data_o, last_o
-phr rate frameLength scrambler phrLength ready_i start_i = bundle (valid_o, data_o, last_o, bitCounter)
+    => Signal dom PHRInput
+    -> Signal dom PHROutput
+phr input = do
+    -- Output
+    axiOutput <- do
+        valid <- valid_o
+        _data <- data_o
+        last <- bitCounterEnd
+        pure AxiForward {..}
+    pure PHROutput {..}
     where
-        slaveWrite = ready_i * valid_o
+        slaveWrite = (input <&> (.axiOutputFeedback) <&> (.ready)) * valid_o
 
         nextState :: State -> Bit -> Bit -> Bit -> State
         --        ┌state
@@ -114,7 +135,13 @@ phr rate frameLength scrambler phrLength ready_i start_i = bundle (valid_o, data
         nextState Running 1 _ 1 = Idle
         nextState Running _ _ _ = Running
 
-        state = register Idle (nextState <$> state <*> bitCounterEnd <*> start_i <*> slaveWrite)
+        state =
+            register Idle $
+                nextState
+                    <$> state
+                    <*> bitCounterEnd
+                    <*> (input <&> (.start))
+                    <*> slaveWrite
 
         nextBitCounter :: State -> Bit -> Unsigned 7 -> Unsigned 7
         -- state, slaveWrite
@@ -124,8 +151,7 @@ phr rate frameLength scrambler phrLength ready_i start_i = bundle (valid_o, data
 
         bitCounter = register (0 :: Unsigned 7) (nextBitCounter <$> state <*> slaveWrite <*> bitCounter)
 
-        bitCounterEnd = boolToBit <$> (bitCounter .==. phrLength)
-        last_o = bitCounterEnd
+        bitCounterEnd = boolToBit <$> (bitCounter .==. (input <&> (.phrLength)))
 
         valid_o = boolToBit <$> (state .==. pure Running)
 
@@ -144,7 +170,13 @@ phr rate frameLength scrambler phrLength ready_i start_i = bundle (valid_o, data
 
         data_o = dataOut <$> state <*> phr <*> hcs <*> bitCounter
 
+        -- TODO : Check if it's possible to replace "data_o" with "phr" and
+        -- thus only declare data in the output do
         serialHCS_start_i = boolToBit <$> (bitCounter .<. 22 .&&. slaveWrite .==. 1)
         hcs = serialHCS serialHCS_start_i data_o
 
-        phr = PHR <$> (resize <$> rate) <*> frameLength <*> scrambler
+        phr =
+            PHR
+                <$> (resize <$> (input <&> (.mcs)))
+                <*> (input <&> (.frameLength))
+                <*> (input <&> (.scramblerSeed))

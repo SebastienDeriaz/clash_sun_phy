@@ -7,14 +7,13 @@ module SunPhy.Parallelizer where
 
 import Clash.Prelude
 import Data.Functor ((<&>))
+import SunPhy.AXI
 
 -- A module to convert an AXI serial stream to a vector
 
 data ParallelizerInput a = ParallelizerInput
-    { ready :: Bit
-    , valid :: Bit
-    , _data :: a
-    , last :: Bit
+    { axiInput :: AxiForward a
+    , axiOutputFeedback :: AxiBackward 
     }
     deriving stock (Generic, Show, Eq)
     deriving anyclass (NFDataX)
@@ -22,14 +21,14 @@ data ParallelizerInput a = ParallelizerInput
 data ParallelizerOutput n a = ParallelizerOutput 
     { _data :: Vec n a
     , valid :: Bit
-    , ready :: Bit
+    , axiInputFeedback :: AxiBackward
     }
     deriving stock (Generic, Show)
     deriving anyclass (NFDataX)
 
 instance (KnownNat n, Eq a) => Eq (ParallelizerOutput n a) where
     o1 == o2 = (o1.valid == o2.valid)
-            && (o1.ready == o2.ready)
+            && (o1.axiInputFeedback.ready == o2.axiInputFeedback.ready)
             && (o1.valid == 0 || o1._data == o2._data)
 
 parallelizer
@@ -42,16 +41,18 @@ parallelizer
     -> Signal dom (ParallelizerOutput n a)
 parallelizer input = do
     _data <- _data
-    ready <- reading
     valid <- negate <$> reading
+    axiInputFeedback <- do
+      ready <- reading
+      pure AxiBackward {..}
     pure $ ParallelizerOutput {..}
     where
 
-        masterWrite = ((input <&> (.valid)) .==. 1) .&&. (reading .==. 1)
-        slaveWrite = ((input <&> (.ready)) .==. 1) .&&. (reading .==. 0)
+        masterWrite = ((input <&> (.axiInput) <&> (.valid)) .==. 1) .&&. (reading .==. 1)
+        slaveWrite = ((input <&> (.axiOutputFeedback) <&> (.ready)) .==. 1) .&&. (reading .==. 0)
 
         reading = register 1 $ mux
-          ((input <&> (.last)) .==. 1 .&&. masterWrite)
+          ((input <&> (.axiInput) <&> (.last)) .==. 1 .&&. masterWrite)
           (pure 0)
           $ mux
             (slaveWrite .&&. reading .==. 0)
@@ -63,7 +64,7 @@ parallelizer input = do
           masterWrite
           (replace
             <$> bitCounter
-            <*> (input <&> (._data))
+            <*> (input <&> (.axiInput) <&> (._data))
             <*> _data)
           _data
 

@@ -1,12 +1,9 @@
-{-# LANGUAGE ApplicativeDo #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE RecordWildCards #-}
-
 module SunPhy.Serializer where
 
 import Clash.Prelude
 import Data.Functor ((<&>))
+import SunPhy.AXI
+import SunPhy.AXI (AxiBackward(AxiBackward))
 
 -- A module to convert a vector to an AXI serial stream
 
@@ -17,28 +14,25 @@ data State
     deriving anyclass (NFDataX)
 
 data SerializerInput n a = SerializerInput
-    { _data :: Vec n a
+    { dataVec :: Vec n a
     , start :: Bit
-    , ready :: Bit
+    , axiOutputFeedback :: AxiBackward
     }
     deriving stock (Generic, Show, Eq)
     deriving anyclass (NFDataX)
 
 data SerializerOutput a = SerializerOutput
-    { _data :: a
-    , ready :: Bit
-    , valid :: Bit
-    , last :: Bit
+    { axiOutput :: AxiForward a
+    , axiInputFeedback :: AxiBackward
     }
     deriving stock (Generic, Show)
     deriving anyclass (NFDataX)
 
 instance Eq a => Eq (SerializerOutput a) where
-    o1 == o2 =
-        (o1.ready == o2.ready)
-            && (o1.valid == o2.valid)
-            && (o1.last == o2.last)
-            && (o1.valid == 0 || o1._data == o2._data)
+    o1 == o2 = (o1.axiInputFeedback.ready == o2.axiInputFeedback.ready)
+        && (o1.axiOutput.valid == o2.axiOutput.valid)
+        && (o1.axiOutput.last == o2.axiOutput.last)
+        && (o1.axiOutput.valid == 0 || o1.axiOutput._data == o2.axiOutput._data)
 
 serializer
     :: forall a n dom
@@ -48,10 +42,14 @@ serializer
     => Signal dom (SerializerInput n a)
     -> Signal dom (SerializerOutput a)
 serializer input = do
-    ready <- boolToBit <$> (state .==. pure Idle)
-    valid <- outputValid
-    _data <- (!!) <$> (input <&> (._data)) <*> bitCounter
-    last <- boolToBit <$> (state .==. pure Running .&&. bitCounterEnd .==. 1)
+    axiOutput <- do
+        valid <- outputValid
+        _data <- (!!) <$> (input <&> (.dataVec)) <*> bitCounter
+        last <- boolToBit <$> (state .==. pure Running .&&. bitCounterEnd .==. 1)
+        pure AxiForward {..}
+    axiInputFeedback <- do
+        ready <- boolToBit <$> (state .==. pure Idle)
+        pure AxiBackward {..}
     pure $ SerializerOutput {..}
     where
         state =
@@ -64,9 +62,9 @@ serializer input = do
 
         outputValid = boolToBit <$> (state .==. pure Running)
 
-        slaveWrite = outputValid * (input <&> (.ready))
+        slaveWrite = outputValid * (input <&> (.axiOutputFeedback) <&> (.ready))
 
-        len = length <$> (input <&> (._data))
+        len = length <$> (input <&> (.dataVec))
 
         bitCounter :: Signal dom (Index n)
         bitCounter = register (0 :: Index n) (nextBitCounter <$> state <*> slaveWrite <*> bitCounterEnd <*> bitCounter)
