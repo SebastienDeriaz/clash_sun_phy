@@ -3,23 +3,23 @@ module SunPhy.PN9 where
 import Clash.Prelude
 import Data.Bits
 
-pn9_next :: Bits a => a -> a
-pn9_next a = (a `shiftR` 1) .|. next
+pn9Next :: BitVector 9 -> BitVector 9
+pn9Next a = (a `shiftR` 1) .|. next
   where
-    next = ((a `shiftL` 3) `xor` (a `shiftL` 8)) .&. (bit 8)
+    next = ((a `shiftL` 3) `xor` (a `shiftL` 8)) .&. bit 8
 
 
-reg_init = 0b1_1111_1111 :: BitVector 9
+regInit = 0b1_1111_1111 :: BitVector 9
 
-reg_next :: BitVector 9 -> Bit -> Bit -> BitVector 9 -> BitVector 9
---       ┌seed
---       │ ┌next_i
---       │ │ ┌reset_i
---       │ │ │ ┌reg
---       │ │ │ │
-reg_next i _ 1 _ = i
-reg_next _ 1 0 x = pn9_next x
-reg_next _ 0 0 x = x
+regNext :: BitVector 9 -> Bit -> Bit -> BitVector 9 -> BitVector 9
+--      ┌seed
+--      │ ┌next_i
+--      │ │ ┌reset_i
+--      │ │ │ ┌reg
+--      │ │ │ │
+regNext i _ 1 _ = i
+regNext _ 1 0 x = pn9Next x
+regNext _ 0 0 x = x
 
 
 pn9 :: forall dom . HiddenClockResetEnable dom
@@ -29,6 +29,9 @@ pn9 :: forall dom . HiddenClockResetEnable dom
     -> Signal dom (Bit, BitVector 9) -- data_o
 pn9 pn9_seed next_i reset_i = bundle (data_o, reg)
   where
-    data_o = msb <$> (pn9_next <$> reg)
-    reg = register (reg_init) regNext
-    regNext = reg_next <$> pn9_seed <*> next_i <*> reset_i <*> reg
+    data_o = msb <$> (pn9Next <$> reg)
+    reg = register regInit $ regNext
+      <$> pn9_seed
+      <*> next_i
+      <*> reset_i
+      <*> reg

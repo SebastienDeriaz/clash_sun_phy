@@ -161,7 +161,6 @@ fec bp phyFSKFECScheme valid_i data_i last_i ready_i = bundle(ready_o, valid_o, 
     padCounterEnd = boolToBit <$> (padCounter .==. (padCounterMax <$> evenNBytes))
 
     pad = boolToBit <$> (testBit pad_bits <$> (fromEnum <$> padCounter))
-
     
     tail = boolToBit <$> (testBit <$> (tailVec <$> m <*> phyFSKFECScheme) <*> (fromEnum <$> tailCounter))
 
@@ -169,7 +168,7 @@ fec bp phyFSKFECScheme valid_i data_i last_i ready_i = bundle(ready_o, valid_o, 
     encoderInput' = encoderInput <$> state <*> data_i <*> tail <*> pad
 
     mReg = register (0 :: BitVector 3) nextMReg
-    nextMReg = mux (state .==. (pure Data) .&&. last_i .==. (pure 1)) m mReg
+    nextMReg = mux (state .==. pure Data .&&. last_i .==. 1) m mReg
     (m, encoderReady_o, encoderData_o, encoderValid_o, encoderState) = unbundle $ fecEncoder phyFSKFECScheme ready_i encoderValid_i' encoderInput'
 
     bypassInput = do

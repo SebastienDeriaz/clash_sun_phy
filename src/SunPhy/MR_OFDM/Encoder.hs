@@ -113,7 +113,7 @@ encoder input = do
                     b
 
         isLast =
-            register (False) $
+            register False $
                 mux
                     masterWrite
                     (bitToBool <$> (axiInput <&> (.last)))

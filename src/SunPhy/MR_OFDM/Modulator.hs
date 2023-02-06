@@ -16,7 +16,6 @@ import Data.Functor ((<&>))
 --         valid_i  ┠>              ┣> data_o
 --          data_i  ┠>              ┠> last_o
 --          last_i  ┠>              ┃
---                  ┃               ┃
 --                  ┗━━━━━━━━━━━━━━━┛
 
 data ModulatorInput = ModulatorInput
@@ -45,15 +44,15 @@ applyModulation :: Modulation -> Bit -> Bit -> Bit -> Bit -> Subcarrier
 --              │     │ │ ┌m[-2]   ->b1
 --              │     │ │ │ ┌m[-3] ->b0
 -- BPSK         │     │ │ │ │
-applyModulation BPSK  a _ _ _ = (singleBPSK a) :+ 0.0
+applyModulation BPSK  a _ _ _ = singleBPSK a :+ 0.0
 -- QPSK
 -- 00 -> -1-1j
 -- 01 -> -1+1j
 -- 10 -> +1-1j
 -- 11 -> +1+1j
-applyModulation QPSK  a b _ _ = (singleBPSK b) :+ (singleBPSK a)
+applyModulation QPSK  a b _ _ = singleBPSK b :+ singleBPSK a
 -- QAM16
-applyModulation QAM16 a b c d = ((2.0 - (singleBPSK c)) * (singleBPSK d)) :+ ((2.0 - (singleBPSK a)) * (singleBPSK b))
+applyModulation QAM16 a b c d = ((2.0 - singleBPSK c) * singleBPSK d) :+ ((2.0 - singleBPSK a) * singleBPSK b)
 
 modulator
     :: forall dom . HiddenClockResetEnable dom
@@ -87,7 +86,7 @@ modulator input = do
       <*> full
       <*> dataCounter
 
-    full = boolToBit <$> (dataCounter .==. ((nbpsc_mod <$> _modulation)))
+    full = boolToBit <$> (dataCounter .==. (nbpsc_mod <$> _modulation))
 
     -- Holds the necessary amount of previous data bits for the modulation
     m0 = register (0 :: Bit) (mux (bitToBool <$> masterWrite) (input <&> (.axiInput) <&> (._data)) m0)

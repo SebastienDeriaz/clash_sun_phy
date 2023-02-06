@@ -1,5 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ViewPatterns #-}
 module SunPhy.Scrambler where
 
 import SunPhy.PN9 (pn9)

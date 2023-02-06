@@ -24,7 +24,6 @@ import Data.Functor ((<&>))
 data OfdmInput = OfdmInput
     { ofdmOption :: OFDM_Option
     , mcs :: MCS
-    , cpEnable :: Bool
     , axiInput :: AxiForward Bit
     , axiOutputFeedback :: AxiBackward
     , pilotsetIndex :: Unsigned 4
@@ -46,7 +45,7 @@ data OfdmOutput = OfdmOutput
 
 ifftshift :: Unsigned 8 -> Unsigned 7 -> Unsigned 7
 ifftshift nfft i
-  | i >= (resize nfft) = i
+  | i >= resize nfft = i
   | i < n2 = i + n2
   | otherwise = i - n2
  where
@@ -72,40 +71,13 @@ data State = Init -- Initial state
 -- the DC tone is skipped
 subcarrierCounterToIndex :: Unsigned 8 -> Unsigned 8 -> Unsigned 7 -> Unsigned 7
 -- _n_fft, active_tones, counter
-subcarrierCounterToIndex nfft at i = i + offset + (dcOffset i)
+subcarrierCounterToIndex nfft at i = i + offset + dcOffset i
  where
-  offset = resize $ (nfft - (resize at)) `div` 2 :: Unsigned 7
+  offset = resize $ (nfft - resize at) `div` 2 :: Unsigned 7
   dcOffset :: Unsigned 7 -> Unsigned 7
   dcOffset i
-    | i >= (resize $ at `div` 2) = 1
+    | i >= (resize at `div` 2) = 1
     | otherwise = 0
-
--- -- Convert a counter value to an index when accounting for SF effect
--- counterToSpreadIndex :: Unsigned 3 -> Unsigned 8 -> Unsigned 8 -> Unsigned 7 -> Unsigned 7
--- -- 1x (no change)
--- counterToSpreadIndex 1 nfft at i = subcarrierCounterToIndex nfft at i
--- -- 2x and 4x
--- -- 2x bbbbbbbbDmmmmmmmm
--- -- 4x ccccddddDmmmmbbbb
--- counterToSpreadIndex s nfft at i = out (it + offset s m)
---   where
---     at2 = resize $ at `div` 2 :: Unsigned 7
---     at4 = resize $ at `div` 4  :: Unsigned 7
---     it = i `div` (resize s)
-
---     m = i `mod` (resize s)
---     --offset s m
---     offset 2 0 = 0
---     offset 2 1 = at2
---     offset 4 0 = 0
---     offset 4 1 = at4
---     offset 4 2 = at2
---     offset 4 3 = at2 + at4
-
---     out j
---      | j < at2 = subcarrierCounterToIndex nfft at (j + at2)
---      | otherwise = subcarrierCounterToIndex nfft at (j - at2)
-
 
 counterToSpreadIndex :: Unsigned 3 -> Unsigned 8 -> Unsigned 8 -> Unsigned 2 -> Unsigned 7 -> Unsigned 7 
 -- spreadingFactor, nfft, activeTones, spreadIndex, index -> new index
@@ -159,7 +131,8 @@ ofdm input = do
 
     ofdmOption = input <&> (.ofdmOption)
     mcs = input <&> (.mcs)
-    cp = boolToBit <$> (input <&> (.cpEnable))
+    -- Cyclic prefix is always enabled
+    cp = pure 1
 
     modulatorInput :: Signal dom ModulatorInput
     modulatorInput = 
@@ -173,7 +146,7 @@ ofdm input = do
     modulatorOutput :: Signal dom ModulatorOutput
     modulatorOutput = modulator modulatorInput
 
-    mod_ready_i = (mod_ready <$> state)
+    mod_ready_i = mod_ready <$> state
 
     -- ╔══════════════════════════════╗
     -- ║ Outputs and output functions ║
@@ -219,7 +192,7 @@ ofdm input = do
 
     n_dbps :: Unsigned 8 -> Unsigned 3 -> Unsigned 7
     -- dataTones, frequencySpreading
-    n_dbps dt sf = (resize dt) `div` (resize sf)
+    n_dbps dt sf = resize dt `div` resize sf
 
     _ndbps = n_dbps <$> _dataTones <*> _frequencySpreading
 
@@ -242,10 +215,6 @@ ofdm input = do
     --        │    │ │ │ │ │ │ │ │ │ ┌slaveWrite
     -- Init   │    │ │ │ │ │ │ │ │ │ │
     nextState Init _ _ _ _ _ _ _ _ _ _ = WPlt -- Write the pilots
-    -- Idle
-    -- nextState Idle 1 _ _ _ _ _ _ _ _ _ = WPlt -- Write the pilots
-    -- nextState Idle _ _ 1 _ _ _ _ _ _ _ = WDat
-    -- nextState Idle _ _ _ _ _ _ _ _ _ _ = Idle
     -- Write pilot                             
     nextState WPlt _ 1 _ _ _ _ _ _ _ _ = Wait -- Go to Write data
     nextState WPlt _ 0 _ _ _ _ _ _ _ _ = WPlt
@@ -521,17 +490,13 @@ ofdm input = do
 
     subcarrierCounterEnd :: State -> Unsigned 8 -> Unsigned 8 -> Unsigned 3 -> Unsigned 7 -> Bit
     -- state, nfft, dataTones, frequencySpreading
-    -- WDat (Number of data bits in the OFDM spectrum)
-    -- subcarrierCounterEnd WDat _ dt sf i = boolToBit $ i == (nData - 1)
-      -- where
-        -- nData = (resize dt) `div` (resize sf)
     -- WrSF (Write Frequency spreading)
     subcarrierCounterEnd WrSF _ dt sf i = boolToBit $ i == (nData - 1)
       where
-        nData = (resize dt) `div` (resize sf)
+        nData = resize dt `div` resize sf
     -- Cyclic prefix out
-    subcarrierCounterEnd OuCP nfft _  _  i = boolToBit $ i == (resize $ nfft - 1)
-    subcarrierCounterEnd Outp nfft _  _  i = boolToBit $ i == (resize $ nfft - 1)
+    subcarrierCounterEnd OuCP nfft _  _  i = boolToBit $ i == (resize nfft - 1)
+    subcarrierCounterEnd Outp nfft _  _  i = boolToBit $ i == (resize nfft - 1)
     subcarrierCounterEnd _    _    _  _  _ = 0
 
     subcarrierCounterEnd' = subcarrierCounterEnd <$> state <*> _n_fft <*> _dataTones <*> _frequencySpreading <*> subcarrierCounter
@@ -612,11 +577,6 @@ ofdm input = do
 
     pilotIndex = pilot <$> ofdmOption <*> pilotSetCounter <*> pilotCounter
 
-    -- PN9 Sequence for pilot generation
-    -- nextPn9_seed :: BitVector 9 -> BitVector 9
-    -- nextPn9_seed x = x
-    -- pn9_seed = register (0b1_1111_1111 :: BitVector 9) $ nextPn9_seed <$> pn9_seed
-
     pn9_next = boolToBit <$> (state .==. pure WPlt)
     (pilotValue, pn9_reg) = unbundle $ pn9
       (input <&> (.pn9Seed))
@@ -636,7 +596,7 @@ ofdm input = do
     --              │    │ │ │ │ ┌subcarriers
     --              │    │ │ │ │ │
     -- Idle         │    │ │ │ │ │
-    nextSubcarriers Init _ _ _ _ _ = repeat (0) :: Vec 128 Subcarrier
+    nextSubcarriers Init _ _ _ _ _ = repeat 0 :: Vec 128 Subcarrier
     -- WPlt / WDat
     -- Apply conjugate and ifftshirt here to help the IFFT
     nextSubcarriers _    1 i v n x = replace (ifftshift n i) (conjugate v) x
@@ -649,14 +609,6 @@ ofdm input = do
       <*> subcarrierValue'
       <*> _n_fft
       <*> subcarriers
-
-    --pilotSkipIndex = indexWithPilotSkip <$> subcarrierIndex <*> pilotHere
-
-    --pilotHere = boolToBit <$> (testBit <$> pilotsFlags <*> (fromEnum <$> subcarrierIndex))
-
-    -- indexWithPilotSkip :: Unsigned 7 -> Bit -> Unsigned 7
-    -- indexWithPilotSkip i 0 = i
-    -- indexWithPilotSkip i 1 = i + 1
 
     subcarrierValue :: State -> Unsigned 3 -> Unsigned 2 -> Unsigned 7 -> Bit -> Subcarrier -> Subcarrier -> Subcarrier
     --              ┌state
@@ -714,7 +666,7 @@ ofdm input = do
         64 -> 4
         32 -> 3
         16 -> 2
-        otherwise -> 0
+        _ -> 0
 
     scaleIfft :: Unsigned 8 -> Vec 128 IQ -> Vec 128 IQ
     scaleIfft nfft v = ifftScale nfft <$> v
@@ -725,5 +677,5 @@ ofdm input = do
     rawFftOutput :: Signal dom (Vec 128 IQ)
     rawFftOutput = conjugate <$$> fftOutputConj
 
-    fftOutput :: Signal dom (Vec 128 (IQ))
+    fftOutput :: Signal dom (Vec 128 IQ)
     fftOutput = scaleIfft <$> _n_fft <*> rawFftOutput

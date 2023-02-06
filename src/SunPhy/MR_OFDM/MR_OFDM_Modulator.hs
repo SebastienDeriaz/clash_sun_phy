@@ -180,14 +180,11 @@ mrOfdmModulator input = do
 
         -- 2) Scrambler
         psduScramblerInput :: Signal dom ScramblerInput
-        psduScramblerInput =
-            bundle (psduPadderOutput, psduEncoderOutput, scrambler_pn9_seed)
-                <&> \(psduPadderOutput, psduEncoderOutput, scrambler_pn9_seed) ->
-                    ScramblerInput
-                        { axiInput = psduPadderOutput.axiOutput
-                        , axiOutputFeedback = psduEncoderOutput.axiInputFeedback
-                        , pn9Seed = scrambler_pn9_seed
-                        }
+        psduScramblerInput = do
+            axiInput <- psduPadderOutput <&> (.axiOutput)
+            axiOutputFeedback <- psduEncoderOutput <&> (.axiInputFeedback)
+            pn9Seed <- scrambler_pn9_seed
+            pure ScramblerInput {..}
 
         psduScramblerOutput :: Signal dom ScramblerOutput
         psduScramblerOutput = scrambler psduScramblerInput
@@ -242,7 +239,6 @@ mrOfdmModulator input = do
                     OfdmInput
                         { ofdmOption = input.ofdmOption
                         , mcs = input.ofdmOption
-                        , cpEnable = True
                         , axiInput = psduInterleaverOutput.axiOutput
                         , axiOutputFeedback = concat4Output.axiInputFeedbackD
                         , pilotsetIndex = phrOfdmOutput.pilotSetCounter
@@ -302,7 +298,6 @@ mrOfdmModulator input = do
                     OfdmInput
                         { ofdmOption = input.ofdmOption
                         , mcs = lowestMCS input.ofdmOption
-                        , cpEnable = True
                         , axiInput = phrInterleaverOutput.axiOutput
                         , axiOutputFeedback = concat4Output.axiInputFeedbackC
                         , pilotsetIndex = 0
