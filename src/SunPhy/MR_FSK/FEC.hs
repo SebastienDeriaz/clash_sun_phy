@@ -7,9 +7,9 @@ module SunPhy.MR_FSK.FEC where
 import Clash.Prelude hiding (foldr)
 import Data.Foldable (foldr)
 
-import SunPhy.MR_FSK.FEC_B (fecEncoder, FecEncoderState)
+import SunPhy.MR_FSK.FECEncoder (fecEncoder, FecEncoderState)
 
-import SunPhy.Bypass
+import SunPhy.Bypass ( bypass )
 
 tailVec :: (BitVector 3) -> Bit -> BitVector 3
 --      ┌m
