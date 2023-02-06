@@ -1,5 +1,37 @@
 {
   "nodes": {
+    "clash-compiler": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1674640738,
+        "narHash": "sha256-ICAqfbZkeqxVHqHoVMIUQ/kr63uN4rZhlbo3BorYEZU=",
+        "owner": "clash-lang",
+        "repo": "clash-compiler",
+        "rev": "dadd0e2d23a736261d335e244e3c2b1fbaa5a493",
+        "type": "github"
+      },
+      "original": {
+        "owner": "clash-lang",
+        "repo": "clash-compiler",
+        "type": "github"
+      }
+    },
+    "clash-utils": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1671354764,
+        "narHash": "sha256-vlNWZF4YUCqWWDbeBaRvA/i52ghfQhCf1jG7IplugYE=",
+        "owner": "adamwalker",
+        "repo": "clash-utils",
+        "rev": "a8f6363c4a9f926c847321ada8a7aada4b865262",
+        "type": "github"
+      },
+      "original": {
+        "owner": "adamwalker",
+        "repo": "clash-utils",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -48,22 +80,24 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1673957332,
-        "narHash": "sha256-njH7Szk1BLVWGMw7IRibgGejSlxXHj9saZHfH20gHdk=",
+        "lastModified": 1675545634,
+        "narHash": "sha256-TbQeQcM5TA/wIho6xtzG+inUfiGzUXi8ewwttiQWYJE=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "b83e7f5a04a3acc8e92228b0c4bae68933d504eb",
+        "rev": "0591d6b57bfeb55dfeec99a671843337bc2c3323",
         "type": "github"
       },
       "original": {
         "owner": "nixos",
-        "ref": "nixos-22.11",
+        "ref": "nixos-unstable",
         "repo": "nixpkgs",
         "type": "github"
       }
     },
     "root": {
       "inputs": {
+        "clash-compiler": "clash-compiler",
+        "clash-utils": "clash-utils",
         "flake-compat": "flake-compat",
         "flake-utils": "flake-utils",
         "nix-filter": "nix-filter",

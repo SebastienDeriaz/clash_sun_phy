@@ -13,16 +13,18 @@ import numpy as np
 
 def vec(name, data):
     N = data.size
-    v = ' :> '.join([f"({x.real:.16f}, {x.imag:.16f})" for x in data])
+    v = ' :> '.join([f"(({x.real:.16f}) :+ ({x.imag:.16f}))" for x in data])
     return f"{name} :: Vec {N} (Subcarrier)\n{name} = {v} :> Nil"
 
 
 def main():
     stf_str = "module SunPhy.MR_OFDM.STF_constants where\n\n"
     stf_str += "import SunPhy.MR_OFDM.Constants\n"
+    stf_str += "import Clash.DSP.Complex\n"
     stf_str += "import Clash.Prelude\n\n"
     ltf_str = "module SunPhy.MR_OFDM.LTF_constants where\n\n"
     ltf_str += "import SunPhy.MR_OFDM.Constants\n"
+    ltf_str += "import Clash.DSP.Complex\n"
     ltf_str += "import Clash.Prelude\n\n"
 
     for OFDM_Option in range(1, 4+1):

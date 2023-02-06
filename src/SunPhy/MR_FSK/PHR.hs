@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module SunPhy.MR_FSK.PHR where
@@ -18,13 +19,13 @@ data PHR = PHR
 instance BitPack PHR where
   type BitSize PHR = 16
   pack PHR{..} =
-    (reverseBits $ pack phrFrameLength)
-     ++# (pack phrDataWhitening)
-     ++# (pack phrFCS)
-     ++# (0b00 :: BitVector 2)
-     ++# (pack phrModeSwitch)
+    reverseBits $ pack phrFrameLength
+     ++# pack phrDataWhitening
+     ++# pack phrFCS
+     ++# 0b00
+     ++# pack phrModeSwitch
 
-  unpack $(bitPattern ("a..bcddddddddddd")) =
+  unpack $(bitPattern "a..bcddddddddddd") =
     PHR
       { phrModeSwitch = unpack a
       , phrFCS = unpack b

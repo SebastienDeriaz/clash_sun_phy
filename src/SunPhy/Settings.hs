@@ -1,11 +1,4 @@
 module SunPhy.Settings where
 
-data AxiForward = AxiForward
-    { _valid :: Bit
-    , _data :: Bit
-    , _last :: Bit
-    }
+import Clash.Prelude
 
-data AxiBackward = AxiBackward
-    { _ready :: Bit
-    }

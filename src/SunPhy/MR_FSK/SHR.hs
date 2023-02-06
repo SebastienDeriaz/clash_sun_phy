@@ -104,8 +104,8 @@ data_out :: State -> Bit -> Bit -> Bit
 --       │        ┌preambleBit 
 --       │        │ ┌sfd_bit
 --       │        │ │
-data_out Preamble p _ = preamble
-data_out SFD      _ s = sfd
+data_out Preamble p _ = p
+data_out SFD      _ s = s
 data_out _        _ _ = 0
 
 shr
