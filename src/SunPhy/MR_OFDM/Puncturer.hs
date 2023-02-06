@@ -12,13 +12,12 @@
 --         valid_i  ┠>              ┣> data_o
 --          data_i  ┠>              ┠> last_o
 --          last_i  ┠>              ┃
---                  ┃               ┃
 --                  ┗━━━━━━━━━━━━━━━┛
 
 module SunPhy.MR_OFDM.Puncturer where
 
 import Clash.Prelude
-import SunPhy.Bypass (bypass)
+import SunPhy.Bypass (bypass, BypassInput(..), BypassOutput(..))
 import Data.Functor ((<&>))
 import SunPhy.AXI
 
@@ -50,13 +49,16 @@ puncturer input = do
       pure AxiBackward {..}
     -- Output (to slave)
     axiOutput <- do
-      last <- last_o
-      valid <- valid_o
-      _data <- data_o
+      last <- bypassOutput <&> (.axiOutput) <&> (.last)
+      valid <- bypassOutput <&> (.axiOutput) <&> (.valid)
+      _data <- bypassOutput <&> (.axiOutput) <&> (._data)
       pure AxiForward {..}
     pure PuncturerOutput {..}
   where
-    readyOut = mux keep bypassReadyOut 1
+    readyOut = mux
+      keep
+      (bypassOutput <&> (.axiInputFeedback) <&> (.ready))
+      1
     slaveWrite = readyOut .==. 1 .&&. (input <&> (.axiInput) <&> (.valid)) .==. 1
 
     nextBitCounter :: Bit -> Bool -> Unsigned 3 -> Unsigned 3
@@ -74,13 +76,20 @@ puncturer input = do
 
     -- Decides if the data must be kept or not
     -- Data B1 and A2 is removed when the puncturer is enabled
-    keep = (bitCounter .==. 3 .||. bitCounter .==. 4 .||. (input <&> (.enable)) .==. 0)
+    keep = bitCounter .==. 3 .||. bitCounter .==. 4 .||. (input <&> (.enable)) .==. 0
 
-    bypassValidIn = mux keep (input <&> (.axiInput) <&> (.valid)) 0
+    bypassInput = do
+      axiInput <- do
+        valid <- mux keep (input <&> (.axiInput) <&> (.valid)) 0
+        _data <- input <&> (.axiInput) <&> (._data)
+        last <- input <&> (.axiInput) <&> (.last)
+        pure AxiForward {..}
+      axiOutputFeedback <- do
+        ready <- input <&> (.axiOutputFeedback) <&> (.ready)
+        pure AxiBackward {..}
+      pure BypassInput {..}
 
-    (valid_o, data_o, last_o, bypassReadyOut) = unbundle $ bypass
-        bypassValidIn
-        (input <&> (.axiInput) <&> (._data))
-        (input <&> (.axiInput) <&> (.last))
-        (input <&> (.axiOutputFeedback) <&> (.ready))
+    bypassOutput = bypass bypassInput
+        
+        
 

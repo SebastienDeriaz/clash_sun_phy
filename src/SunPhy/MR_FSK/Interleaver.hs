@@ -23,7 +23,9 @@ module SunPhy.MR_FSK.Interleaver where
 -- Note that each index is a singular bit
 
 import Clash.Prelude
-import SunPhy.Bypass (bypass)
+import SunPhy.Bypass
+import SunPhy.AXI
+import Data.Functor ((<&>))
 
 
 -- State machine
@@ -81,10 +83,10 @@ nextBuffer Write 1 _ i  1 b = setBit b (fromEnum i)
 nextBuffer Read  _ 1 31 _ _ = 0
 nextBuffer _     _ _ _  _ b = b
 
-ready :: State -> Bit
-ready Idle = 1
-ready Write = 1
-ready Read = 0
+ready' :: State -> Bit
+ready' Idle = 1
+ready' Write = 1
+ready' Read = 0
 
 nextLastStore :: State -> Bit -> Bit -> Bit
 --            ┌state
@@ -132,13 +134,40 @@ interleaver bp valid_i data_i last_i ready_i = bundle(ready_o, data_o, valid_o, 
 
     output = boolToBit <$> (testBit <$> buffer <*> (fromEnum <$> (outputIndex <$> counter)))
 
-    ready_out = ready <$> state
+    ready_out = ready' <$> state
     valid_out = boolToBit <$> (state .==. pure Read)
-    -- Bypass
-    (bypassValid_o, bypassData_o, bypassLast_o, bypassReady_o) = unbundle $ bypass valid_i data_i last_i ready_i
+
+
+    bypassInput = do
+      axiInput <- do
+        valid <- valid_i
+        _data <- data_i
+        last <- last_i
+        pure AxiForward {..}
+      axiOutputFeedback <- do
+        ready <- ready_i
+        pure AxiBackward {..}
+      pure BypassInput {..}
+
+    bypassOutput = bypass bypassInput
     -- Outputs
     bpb = bitToBool <$> bp
-    ready_o = mux bpb bypassReady_o ready_out
-    valid_o = mux bpb bypassValid_o valid_out
-    data_o  = mux bpb bypassData_o (mux (state .==. (pure Read)) output (pure 0))
-    last_o  = mux bpb bypassLast_o $ boolToBit <$> (state .==. pure Read .&&. (lastStore .==. 1) .&&. counterEnd)
+    ready_o = mux
+      bpb
+      (bypassOutput <&> (.axiInputFeedback) <&> (.ready))
+      ready_out
+      
+    valid_o = mux
+      bpb
+      (bypassOutput <&> (.axiOutput) <&> (.valid))
+      valid_out
+
+    data_o = mux
+      bpb
+      (bypassOutput <&> (.axiOutput) <&> (._data))
+      (mux (state .==. pure Read) output (pure 0))
+
+    last_o = mux
+      bpb
+      (bypassOutput <&> (.axiOutput) <&> (.last))
+      (boolToBit <$> (state .==. pure Read .&&. (lastStore .==. 1) .&&. counterEnd))

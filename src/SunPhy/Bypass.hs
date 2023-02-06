@@ -1,6 +1,8 @@
-module SunPhy.Bypass (bypass) where
+module SunPhy.Bypass (bypass, BypassInput(..), BypassOutput(..)) where
 
 import Clash.Prelude
+import SunPhy.AXI
+import Data.Functor ((<&>))
 
 -- A Bypass block is very simple :
 -- It takes data in through an AXI stream interface
@@ -24,52 +26,80 @@ import Clash.Prelude
 -- The Bypass block has to buffer this incoming data and then output it
 
 
-data State = Idle -- No data in the buffer
-           | Piped -- There's data in the buffer, but it's coming out as new data is coming in
-           | Buffer -- Data has accumulated in the input buffer, it must come out before new data can be accepted
+data BypassState = Idle -- No data in the buffer
+           | Pipe -- There's data in the buffer, but it's coming out as new data is coming in
+           | Buff -- Data has accumulated in the input buffer, it must come out before new data can be accepted
   deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
   deriving anyclass NFDataX
 
+data BypassInput a = BypassInput
+    { axiInput :: AxiForward a
+    , axiOutputFeedback :: AxiBackward
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
+
+data BypassOutput a = BypassOutput
+    { axiInputFeedback :: AxiBackward
+    , axiOutput :: AxiForward a
+    }
+    deriving stock (Generic, Show, Eq)
+    deriving anyclass (NFDataX)
+
 
 bypass
-    :: forall dom . HiddenClockResetEnable dom
-    => Signal dom Bit -- valid_i
-    -> Signal dom Bit -- data_i
-    -> Signal dom Bit -- last_i
-    -> Signal dom Bit -- ready_i
-    -> Signal dom (Bit, Bit, Bit, Bit) -- valid_o, data_o, last_o, ready_o
-bypass valid_i data_i last_i ready_i = bundle(valid_o, data_o, last_o, ready_o)
+    :: forall dom a . HiddenClockResetEnable dom
+    => Num a
+    => NFDataX a
+    => Signal dom (BypassInput a)
+    -> Signal dom (BypassOutput a)
+bypass input = do
+  axiInputFeedback <- do
+    ready <- ready_o
+    pure AxiBackward {..}
+  axiOutput <- do
+    valid <- valid_o
+    _data <- mux (state ./=. pure Buff) a b
+    last <- boolToBit <$> (state .==. pure Pipe .&&. slaveWrite .==. 1 .&&. lastFlag .==. pure 1)
+    pure AxiForward {..}
+  pure BypassOutput {..}
   where    
-    slaveWrite = ready_i * valid_o
-    masterWrite = ready_o * valid_i
+    slaveWrite = (input <&> (.axiOutputFeedback) <&> (.ready)) * valid_o
+    masterWrite = ready_o * (input <&> (.axiInput) <&> (.valid))
 
-    nextState :: State -> Bit -> Bit -> State
+    nextState :: BypassState -> Bit -> Bit -> BypassState
     --        ┌state
     --        │      ┌masterWrite
     --        │      │ ┌slaveWrite
     -- Idle   │      │ │
-    nextState Idle   1 0 = Piped -- Data in only
+    nextState Idle 1 0 = Pipe -- Data in only
     -- Piped
-    nextState Piped  1 0 = Buffer -- Bufferize the data
-    nextState Piped  0 1 = Idle -- End of incoming data (data out only)
+    nextState Pipe 1 0 = Buff -- Bufferize the data
+    nextState Pipe 0 1 = Idle -- End of incoming data (data out only)
     -- Buffer
-    nextState Buffer 0 1 = Piped -- Data out (return to normal)
+    nextState Buff 0 1 = Pipe -- Data out (return to normal)
     -- Otherwise (no change)
-    nextState x      _ _ = x
+    nextState x _ _ = x
 
     state = register Idle $ nextState <$> state <*> masterWrite <*> slaveWrite
 
-    a = register (0 :: Bit) nextA
-    nextA = mux (bitToBool <$> masterWrite) data_i a
+    a = register 0 nextA
+    nextA = mux
+      (bitToBool <$> masterWrite)
+      (input <&> (.axiInput) <&> (._data))
+      a
 
-    b = register (0 :: Bit) nextB
+    b = register 0 nextB
     nextB = mux (bitToBool <$> masterWrite) a b
 
     -- Last management
     -- A last flag is raised whenever the last_i input is high
-    lastFlag = register (0 :: Bit) (nextLastFlag <$> state <*> last_i <*> lastFlag)
+    lastFlag = register (0 :: Bit) $ nextLastFlag
+      <$> state
+      <*> (input <&> (.axiInput) <&> (.last))
+      <*> lastFlag
 
-    nextLastFlag :: State -> Bit -> Bit -> Bit
+    nextLastFlag :: BypassState -> Bit -> Bit -> Bit
     --           ┌state
     --           │    ┌last_i
     --           │    │ ┌lastFlag
@@ -79,8 +109,6 @@ bypass valid_i data_i last_i ready_i = bundle(valid_o, data_o, last_o, ready_o)
     nextLastFlag _    _ x = x
 
     -- Outputs
-    ready_i_reg = register (0 :: Bit) ready_i
+    ready_i_reg = register 0 (input <&> (.axiOutputFeedback) <&> (.ready))
     ready_o = boolToBit <$> (ready_i_reg .==. 1 .&&. lastFlag .==. 0)
     valid_o = boolToBit <$> (state ./=. pure Idle)
-    data_o = mux (state ./=. pure Buffer) a b
-    last_o = boolToBit <$> (state .==. pure Piped .&&. slaveWrite .==. 1 .&&. lastFlag .==. pure 1)

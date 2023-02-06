@@ -9,7 +9,9 @@ import Data.Foldable (foldr)
 
 import SunPhy.MR_FSK.FECEncoder (fecEncoder, FecEncoderState)
 
-import SunPhy.Bypass ( bypass )
+import SunPhy.Bypass (bypass, BypassInput(..), BypassOutput(..))
+import SunPhy.AXI
+import Data.Functor ((<&>))
 
 tailVec :: (BitVector 3) -> Bit -> BitVector 3
 --      ┌m
@@ -170,14 +172,36 @@ fec bp phyFSKFECScheme valid_i data_i last_i ready_i = bundle(ready_o, valid_o, 
     nextMReg = mux (state .==. (pure Data) .&&. last_i .==. (pure 1)) m mReg
     (m, encoderReady_o, encoderData_o, encoderValid_o, encoderState) = unbundle $ fecEncoder phyFSKFECScheme ready_i encoderValid_i' encoderInput'
 
-    -- Bypass
-    (bypassValid_o, bypassData_o, bypassLast_o, bypassReady_o) = unbundle $ bypass valid_i data_i last_i ready_i
+    bypassInput = do
+      axiInput <- do
+        valid <- valid_i
+        _data <- data_i
+        last <- last_i
+        pure AxiForward {..}
+      axiOutputFeedback <- do
+        ready <- ready_i
+        pure AxiBackward {..}
+      pure BypassInput {..}
+
+    bypassOutput = bypass bypassInput
     -- Outputs
     bpb = bitToBool <$> bp
-    ready_o = mux bpb bypassReady_o encoderReady_o
-    valid_o = mux bpb bypassValid_o encoderValid_o
-    data_o  = mux bpb bypassData_o encoderData_o
-    last_o  = mux bpb bypassLast_o (boolToBit <$> (state .==. pure Last))
+    ready_o = mux
+      bpb
+      (bypassOutput <&> (.axiInputFeedback) <&> (.ready))
+      encoderReady_o
+    valid_o = mux
+      bpb
+      (bypassOutput <&> (.axiOutput) <&> (.valid))
+      encoderValid_o
+    data_o  = mux
+      bpb
+      (bypassOutput <&> (.axiOutput) <&> (._data))
+      encoderData_o
+    last_o  = mux
+      bpb
+      (bypassOutput <&> (.axiOutput) <&> (.last))
+      (boolToBit <$> (state .==. pure Last))
 
 
 

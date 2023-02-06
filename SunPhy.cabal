@@ -18,7 +18,7 @@ library
       SunPhy.Concat3
       SunPhy.Concat4
       SunPhy.MR_FSK.FEC
-      SunPhy.MR_FSK.FEC_B
+      SunPhy.MR_FSK.FECEncoder
       SunPhy.MR_FSK.FSK_modulator
       SunPhy.MR_FSK.Interleaver
       SunPhy.MR_FSK.MR_FSK_modulator
