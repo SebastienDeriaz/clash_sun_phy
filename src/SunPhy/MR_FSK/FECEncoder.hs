@@ -1,7 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DerivingStrategies #-}
 
-module SunPhy.MR_FSK.FEC_B where
+module SunPhy.MR_FSK.FECEncoder where
 
 import Clash.Prelude hiding (foldr)
 import Data.Foldable (foldr)
