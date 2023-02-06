@@ -14,21 +14,23 @@ import Data.Functor ((<&>))
 --         valid_i  ┠>           ┠> valid_o
 --          data_i  ┠>           ┠> data_o
 --          last_i  ┠>           ┠> last_o
---                  ┃            ┃
 --                  ┗━━━━━━━━━━━━┛
 -- 
 -- The challenge resides in the fact that no combinatory path should exist between
 -- "left" (master) and "right" (slave) sides therefore everything must be
 -- passed through registers.
 -- The problem is that when the slave lowers its ready signal (right interface),
--- the left ready (for the master) will still be high for a clock cycle and the master
--- will be able to write to it.
+-- the left ready (for the master) will still be high for
+-- a clock cycle and the master will be able to write to it.
 -- The Bypass block has to buffer this incoming data and then output it
 
 
 data BypassState = Idle -- No data in the buffer
-           | Pipe -- There's data in the buffer, but it's coming out as new data is coming in
-           | Buff -- Data has accumulated in the input buffer, it must come out before new data can be accepted
+-- There's data in the buffer, but it's coming out as new data is coming in
+           | Pipe 
+-- Data has accumulated in the input buffer,
+-- it must come out before new data can be accepted
+           | Buff 
   deriving stock (Generic, Show, Eq, Enum, Bounded, Ord)
   deriving anyclass NFDataX
 
@@ -54,16 +56,22 @@ bypass
     => Signal dom (BypassInput a)
     -> Signal dom (BypassOutput a)
 bypass input = do
+  -- Declare the outputs
+  -- AXI Input feedback
   axiInputFeedback <- do
     ready <- ready_o
     pure AxiBackward {..}
+  -- AXI output
   axiOutput <- do
     valid <- valid_o
     _data <- mux (state ./=. pure Buff) a b
-    last <- boolToBit <$> (state .==. pure Pipe .&&. slaveWrite .==. 1 .&&. lastFlag .==. pure 1)
+    last <- boolToBit <$> (
+      state .==. pure Pipe
+      .&&. slaveWrite .==. 1
+      .&&. lastFlag .==. pure 1)
     pure AxiForward {..}
   pure BypassOutput {..}
-  where    
+  where
     slaveWrite = (input <&> (.axiOutputFeedback) <&> (.ready)) * valid_o
     masterWrite = ready_o * (input <&> (.axiInput) <&> (.valid))
 
@@ -81,7 +89,10 @@ bypass input = do
     -- Otherwise (no change)
     nextState x _ _ = x
 
-    state = register Idle $ nextState <$> state <*> masterWrite <*> slaveWrite
+    state = register Idle $ nextState
+      <$> state
+      <*> masterWrite
+      <*> slaveWrite
 
     a = register 0 nextA
     nextA = mux
