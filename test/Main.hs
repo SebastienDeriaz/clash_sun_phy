@@ -8,7 +8,7 @@ import SerializerSpec
 
 main :: IO ()
 main = hspec $ do
-    --serializerSpec
+    serializerSpec
     mrOfdmModulatorSpec
 
     

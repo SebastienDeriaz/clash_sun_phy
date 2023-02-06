@@ -1,6 +1,11 @@
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module SunPhy.Bypass (bypass, BypassInput(..), BypassOutput(..)) where
 
-import Clash.Prelude
+import Clash.Prelude hiding (last)
 import SunPhy.AXI
 import Data.Functor ((<&>))
 

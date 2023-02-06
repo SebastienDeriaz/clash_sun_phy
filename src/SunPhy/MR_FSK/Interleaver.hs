@@ -1,3 +1,8 @@
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module SunPhy.MR_FSK.Interleaver where
 
 

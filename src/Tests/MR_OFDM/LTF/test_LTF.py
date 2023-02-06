@@ -18,7 +18,7 @@ OFDM_options = list(range(1,5))
 
 
 @pytest.mark.parametrize("OFDM_Option", OFDM_options)
-def test_HCS(OFDM_Option):
+def test_LTF(OFDM_Option):
     tb = Testbench(filepath, 'ltf')
     
     mod = Mr_ofdm_modulator(

@@ -35,7 +35,7 @@ def test_MR_FSK_Modulator():
         phyFSKPreambleLength=4
     )
 
-    mod.message_to_IQ(input_bitstream, binary=True)
+    mod.bitsToIQ(input_bitstream)
     output_bitstream = mod._binarySignal
     # [0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 1 0 1 1 1 1 0 1 0 0 1 1 1 0 1 0 0 0 0 0 0 0 0 0 1 0 1 0 0 0 0 1 1 0 1 0 0 0 0 0 0 0 1 1 0 0 1 1 1 1 0 1 1 0 1 1 0 0 1 1 0 0 0 0 0 1 0 1 0 1 1 0 1 0 1 0 1 1 1 1 1 1 0 0 0 0 0 0 1 1 0 1 1 1 0 0 1 0 0 1 1 1 1 1 0 1 1 0 0 0 0 1 0 1 1 0 0 0 0 1 1 1 0 0 0 0 1 0 1 1 0 0 0 0 1 1 0 1 0 0 0 0]
     #

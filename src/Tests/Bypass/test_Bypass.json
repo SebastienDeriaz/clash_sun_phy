@@ -2,7 +2,7 @@
    {"wave": "P.....................", "name": "clk"},
   {},
   ["Left",
-   {"wave": "0..1...0..1.............0...1..", "name": "ready_o"},
+   {"wave": "0..1...0..1.............0.....1", "name": "ready_o"},
    {"wave": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "name": "ready_o (actual)"},
    {"wave": "0.1........0...1........0......", "name": "valid_i"},
    {"wave": "0.3.3333...xxxx3333333330......", "name": "data_i", "data": [0,1,0,0,1,1,0,1,1,0,0,1,1,0]},

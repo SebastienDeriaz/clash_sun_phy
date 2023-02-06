@@ -1,3 +1,8 @@
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module SunPhy.Scrambler where
 
 import SunPhy.PN9 (pn9)

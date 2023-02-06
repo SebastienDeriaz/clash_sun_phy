@@ -8,7 +8,7 @@ import numpy as np
 from sun_phy.mr_fsk.mr_fsk_modulator import Mr_fsk_modulator
 
 fec = join(dirname(__file__), '../../../SunPhy/MR_FSK/FEC.hs')
-fecB = join(dirname(__file__), '../../../SunPhy/MR_FSK/FEC_B.hs')
+fecB = join(dirname(__file__), '../../../SunPhy/MR_FSK/FECEncoder.hs')
 
 
 def test_RSC():
@@ -190,7 +190,7 @@ def test_FEC():
                 s.print(True)
 
 
-def test_FECB():
+def test_FECEncoder():
     tb = Testbench(fecB, 'fecEncoder')
         
     cg = Chronogram(join(dirname(__file__), 'test_FEC_B_RSC.json'))
